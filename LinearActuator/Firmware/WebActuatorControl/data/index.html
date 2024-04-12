@@ -1,0 +1,77 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>ESP32 Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+    <div class="topbar">
+        <h1>Line Scanning Camera Control</h1>
+    </div>
+    <div class="content">
+        <div class="card">
+            <h2>Setup Form</h2>
+            <form onsubmit="formSubmit()">
+                <table>
+                    <tr>
+                        <td><label for="velocity">Velocity (mm/s):</label></td>
+                        <td><input type="number" id="velocity"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="start_pos">Start Position (mm):</label></td>
+                        <td><input type="number" id="start_pos"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="end_pos">End Position (mm):</label></td>
+                        <td><input type="number" id="end_pos"></td>
+                    </tr>
+                </table>
+                <input type="submit" value="Submit" class="btn" id="submit_btn">
+            </form>
+        </div>
+        <div class="card">
+            <h2>Monitor</h2>
+            <table class="monitor">
+                <tr>
+                    <td>Status:</td>
+                    <td id="status">---</td>
+                </tr>
+                <tr>
+                    <td>Velocity:</td>
+                    <td id="m_vel">---</td>
+                </tr>
+                <tr>
+                    <td>Start Position: </td>
+                    <td id="m_start">---</td>
+                </tr>
+                <tr>
+                    <td>End Position:</td>
+                    <td id="m_end">---</td>
+                </tr>
+                <tr>
+                    <td>Current Position:</td>
+                    <td id="m_pos">---</td>
+                </tr>
+            </table>
+        </div>
+        <div class="card">
+            <h2>Actions</h2>
+            <button id="home" class="btn">Home</button>
+            <button id="goHome" class="btn">Go To Home</button>
+            <button id="goStart" class="btn">Go To Start</button>
+            <button id="start" class="btn">Start Scanning</button>
+            <button id="stp" class="btn">Stop</button>
+        </div>
+        <div class="card">
+            <h2>Serial Monitor</h2>
+            <textarea id="serial-box" rows="8" cols="60">Messages appear here...</textarea>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
