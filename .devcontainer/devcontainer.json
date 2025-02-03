@@ -1,0 +1,27 @@
+{
+    "name": "qualicrop_container",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+
+    },
+    "customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"GitHub.vscode-pull-request-github",
+				"JaehyunShim.vscode-ros2",
+				"ms-vscode.cpptools",
+				"ms-azuretools.vscode-docker"
+			]
+		}
+	},
+    
+    "workspaceFolder": "/workspace",
+
+    "runArgs": [
+        "--net=host",
+        "--privileged",
+        "--runtime=nvidia"
+    ]
+}
