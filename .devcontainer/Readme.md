@@ -22,8 +22,7 @@ This Docker image is built for Qualicrop project development.  **PyTorch**, **Te
 ## 📝 Features
 
 - 🚀 **Pre-configured Environment**: CUDA, cuDNN, TensorFlow, and PyTorch installed.
-- 🧑‍💻 **Data Science Libraries**: Ready to use libraries like NumPy, SciPy, Pandas, and more for analysis.
-- 🎨 **OpenCV Support**: For computer vision and image processing tasks.
+- 🧑‍💻 **Libraries**: Ready to use libraries like NumPy, SciPy, Pandas, OpebCV and more for analysis.
 - 🏗️ **GitHub Repositories**: Automatically clones essential repositories which you can add yours.
 - 🖥️ **Workspace Setup**: A workspace directory to manage your files.
 
