@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir --verbose\
     numpy scipy pandas matplotlib seaborn \
     scikit-learn spectral opencv-python plotly \
-    scikit-image \
+    scikit-image ultralytics \
     h5py
 # Install TensorFlow with CUDA 11.8 support
 RUN python3 -m pip install tensorflow==2.12.0
@@ -27,16 +27,19 @@ RUN python3 -m pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 torchaud
 
 # Create a directory for additional packages and clone repositories
 RUN mkdir -p /workspace/packages && \
-    cd /workspace/packages && \
-    #package 1 && \
-    git clone https://github.com/MahmoudYidi/Anom_GUI.git
+    cd /workspace/packages 
+    #cd /workspace/packages && \
+    #git clone https://github.com/MahmoudYidi/Anom_GUI.git && \
+    #git clone https://github.com/MahmoudYidi/YOLOv8_preprocess.git
+
+    
 
 
-#RUN chmod +x /tmp/*.sh
+
 
 #GUI
-#COPY ../.devcontainer/GUI.sh /usr/local/bin/gui_support.sh
-#RUN chmod +x /usr/local/bin/gui_support.sh
+COPY ../.devcontainer/GUI.sh /usr/local/bin/gui_support.sh
+RUN chmod +x /usr/local/bin/gui_support.sh
 # Copy verify script into the container
 COPY ../src/verify.py /workspace/src/verify.py
 
@@ -45,4 +48,4 @@ WORKDIR /workspace
 
 # Default command
 #CMD ["/usr/local/bin/gui_support.sh", "/bin/bash"]
-CMD ["/bin/bash"]
+CMD ["/usr/local/bin/gui_support.sh", "/bin/bash"]
