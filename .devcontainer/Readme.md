@@ -15,7 +15,7 @@ This Docker image is built for Qualicrop project development.  **PyTorch**, **Te
   - TensorFlow (version 2.12.0)
 - **Additional Libraries**:
   - NumPy, SciPy, Pandas
-  - Matplotlib, Seaborn
+  - Matplotlib, Seaborn, Spectral
   - scikit-learn, scikit-image
   - OpenCV, Plotly, H5py
 
