@@ -1,0 +1,765 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE ssp>
+<ssp version="1.0">
+  <name></name>
+  <description>FX10 with EPIX grabber.</description>
+  <type>Sensor</type>
+  
+  <!-- Defines which module the module type should be set to -->
+  <modules>
+    <module type="grabber">grab008</module>
+    <module type="camera">cam014</module>
+  </modules>
+
+  <dependencies>
+  </dependencies>
+
+  <setup>
+	<cameracount>1</cameracount>
+  </setup>
+
+  <!-- Defines the camera feature -->
+  <features>
+
+
+	<!-- Channel features -->
+
+
+	<feature>
+      <name>Grabber.Channel</name>
+      <module>grabber</module>
+      <type>string</type>
+      <value></value>
+    </feature>
+	
+	<feature>
+      <name>Camera.Channel</name>
+      <type>string</type>
+      <module>camera</module>
+	  <value></value>
+    </feature>
+	
+
+	<!-- Sensor features -->
+
+
+	<feature>
+      <name>Model</name>
+      <type>string</type>
+      <readonly>true</readonly>
+	  <value>FX10</value>
+    </feature>
+	
+	<feature>
+      <name>Camera.MaxDataNumber</name>
+      <type>integer</type>
+	  <module>grabber</module>
+      <readonly>true</readonly>
+	  <value>4095</value>
+    </feature>
+
+	<feature>
+      <name>Sensor.SerialNumber</name>
+      <type>string</type>
+	  <module>grabber</module>
+	  <module>camera</module>
+      <readonly>true</readonly>
+	  <value>123456789</value>
+    </feature>
+
+	<feature>
+		<name>Sensor.Type</name>
+		<type>string</type>
+		<readonly>true</readonly>
+		<value>VNIR PFD</value>
+	</feature>
+	
+	<feature>
+		<name>Sensor.Detector.Type</name>
+		<type>string</type>
+		<module>grabber</module>
+		<module>camera</module>
+		<readonly>true</readonly>
+		<value>VNIR</value>
+	</feature>
+	
+	<feature>
+      <name>Camera.CalibrationPack</name>
+      <module>grabber</module>
+	  <module>camera</module>
+	  <type>string</type>
+	  <value></value>
+	  <stopacquisition>true</stopacquisition>
+    </feature>
+
+	<feature>
+      <name>Camera.CalibrationPack.IsLoaded</name>
+      <module>grabber</module>
+	  <type>boolean</type>
+	  <readonly>true</readonly>
+    </feature>
+	
+	<feature>
+      <name>AcquisitionWindow.Left</name>
+      <module>grabber</module>
+	  <module>camera</module>
+      <type>integer</type>
+	  <value>144</value>
+	  <stopacquisition>true</stopacquisition>
+    </feature>
+
+	<feature>
+      <name>AcquisitionWindow.Top</name>
+      <module>grabber</module>
+	  <module>camera</module>
+      <type>integer</type>
+	  <value>260</value>
+	  <stopacquisition>true</stopacquisition>
+    </feature>
+
+	<feature>
+      <name>AcquisitionWindow.Width</name>
+      <module>grabber</module>
+	  <module>camera</module>
+      <type>integer</type>
+	  <value>1024</value>
+	  <stopacquisition>true</stopacquisition>
+    </feature>
+
+	<feature>
+      <name>AcquisitionWindow.Height</name>
+      <module>grabber</module>
+	  <module>camera</module>
+      <type>integer</type>
+	  <value>200</value>
+	  <stopacquisition>true</stopacquisition>
+    </feature>
+	
+	<feature>
+      <name>AcquisitionWindow.Type</name>
+      <module>grabber</module>
+	  <module>camera</module>
+      <type>enumeration</type>
+      <readonly>true</readonly>
+	  <values>
+		<default>Camera</default>
+		<value>Grabber</value>
+		<value>Camera</value>
+		<value>Software</value>
+	  </values>	  
+    </feature>
+	
+	
+	<!-- Grabber features -->
+
+    <feature>
+      <name>Epix.FormatFiles</name>
+      <module>grabber</module>
+	  <type>enumeration</type>
+        <values>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_1spatial_1spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_1spatial_2spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_1spatial_4spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_1spatial_8spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_2spatial_1spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_2spatial_2spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_2spatial_4spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_2spatial_8spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_4spatial_1spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_4spatial_2spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_4spatial_4spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_4spatial_8spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_8spatial_1spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_8spatial_2spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_8spatial_4spectral.fmt</value>
+          <value>C:/Users/Public/Documents/Specim/External/Epix/Specim_FX10_8spatial_8spectral.fmt</value>
+        </values>
+     </feature>
+     
+    <feature>
+      <name>Grabber.UseDVAL</name>
+      <module>grabber</module>
+	  <type>boolean</type>
+      <value>true</value>
+    </feature>
+
+	<feature>
+      <name>Camera.Count</name>
+      <module>grabber</module>
+	  <type>integer</type>
+      <readonly>true</readonly>
+    </feature>
+
+	<feature>
+      <name>Acquisition.Start</name>
+      <module>grabber</module>
+      <type>command</type>
+    </feature>
+
+    <feature>
+      <name>Acquisition.Stop</name>
+      <module>grabber</module>
+      <type>command</type>
+    </feature>
+
+    <feature>
+      <name>Acquisition.Acquiring</name>
+      <module>grabber</module>
+      <type>boolean</type>
+      <readonly>true</readonly>
+    </feature>
+
+    <feature>
+      <name>Acquisition.RingBuffer.Lag</name>
+      <type>integer</type>
+      <module>grabber</module>
+      <readonly>true</readonly>
+    </feature>
+
+    <feature>
+      <name>Acquisition.RingBuffer.Size</name>
+      <type>integer</type>
+      <module>grabber</module>
+      <value>500</value>
+    </feature>
+
+	<feature>
+      <name>Acquisition.RingBuffer.Sync</name>
+      <type>command</type>
+      <module>grabber</module>
+    </feature>
+
+	<feature>
+      <name>Acquisition.FrameCounter</name>
+      <type>integer</type>
+      <module>grabber</module>
+      <readonly>true</readonly>
+    </feature>
+	<feature>
+      <name>Acquisition.FrameCounter.Reset</name>
+      <type>command</type>
+      <module>grabber</module>
+    </feature>
+
+	<feature>
+      <name>Acquisition.PreStartCallback</name>
+      <module>grabber</module>
+      <type>signal</type>
+    </feature>
+
+    <feature>
+      <name>Acquisition.PostStartCallback</name>
+      <module>grabber</module>
+      <type>signal</type>
+    </feature>
+
+    <feature>
+      <name>Acquisition.PreStopCallback</name>
+      <module>grabber</module>
+      <type>signal</type>
+    </feature>
+
+    <feature>
+      <name>Acquisition.PostStopCallback</name>
+      <module>grabber</module>
+      <type>signal</type>
+    </feature>
+	
+	<feature>
+      <name>Acquisition.Error</name>
+      <module>grabber</module>
+      <type>signal</type>
+    </feature>
+
+	<feature>
+      <name>Acquisition.CalculatedFrameRate</name>
+      <module>grabber</module>
+      <type>float</type>
+	  <readonly>true</readonly>
+    </feature>
+	
+	<feature>
+		<name>Camera.MROI.Enable</name>
+		<module>camera</module>
+		<module>grabber</module>
+		<type>boolean</type>
+		<value>false</value>
+		<stopacquisition>true</stopacquisition>
+	</feature>
+	
+	<feature>
+		<name>Camera.MROI.Mode</name>
+		<module>grabber</module>
+		<module>camera</module>
+		<type>enumeration</type>
+		<values>
+			<default>Band</default>
+			<value>Band</value>
+		</values>
+	</feature>
+		
+	<feature>
+		<name>Camera.MROI.IsHardware</name>
+		<module>grabber</module>
+		<module>camera</module>
+		<type>boolean</type>
+		<readonly>true</readonly>
+		<value>true</value>
+	</feature>
+	
+	<feature>
+		<name>Camera.MROI.Clear</name>
+		<module>grabber</module>
+		<module>camera</module>
+		<type>command</type>
+        <stopacquisition>true</stopacquisition>
+	</feature>
+	
+	<feature>
+		<name>Camera.MROI.MultipointString</name>
+        <module>camera</module>
+		<module>grabber</module>
+		<type>string</type>
+		<stopacquisition>true</stopacquisition>
+	</feature>
+	
+	<feature>
+		<name>Camera.MROI.MultibandString</name>
+        <module>camera</module>
+		<module>grabber</module>
+		<type>string</type>
+		<value></value>
+		<stopacquisition>true</stopacquisition>
+	</feature>
+	
+	
+	<!-- Camera features -->
+
+
+	<feature>
+      <name>Camera.WavelengthTable</name>
+      <module>grabber</module>
+	  <type>enumeration</type>
+    </feature>
+
+	<feature>
+      <name>Camera.Wavelength.Start</name>
+      <type>float</type>
+      <module>grabber</module>
+      <value>400.0</value>
+      <readonly>true</readonly>
+    </feature>
+
+    <feature>
+      <name>Camera.Wavelength.Stop</name>
+      <type>float</type>
+      <module>grabber</module>
+      <value>1000.0</value>
+      <readonly>true</readonly>
+    </feature>
+	
+	<feature>
+      <name>Camera.FWHM</name>
+      <type>enumeration</type>
+      <module>grabber</module>
+    </feature>
+	
+    <feature>
+      <name>Camera.BitDepth</name>
+      <type>integer</type>
+      <module>grabber</module>
+      <value>12</value>
+      <readonly>true</readonly>
+    </feature>
+
+    <feature>
+      <name>Camera.ByteDepth</name>
+      <type>integer</type>
+      <module>grabber</module>
+      <readonly>true</readonly>
+    </feature>
+
+    <feature>
+      <name>Camera.Channels</name>
+      <type>enumeration</type>
+      <module>camera</module>
+      <readonly>true</readonly>
+    </feature>
+
+    <feature>
+      <name>Camera.Model</name>
+      <type>string</type>
+      <module>camera</module>
+	  <module>grabber</module>
+      <readonly>true</readonly>
+      <value>FX10</value>
+    </feature>
+
+    <feature>
+      <name>Camera.SerialNumber</name>
+      <type>string</type>
+      <module>camera</module>
+      <readonly>true</readonly>
+    </feature>
+
+    <feature>
+      <name>Camera.Gain.Digital</name>
+      <type>enumeration</type>
+      <module>camera</module>
+      <values>
+        <default>1x</default>
+        <value>1x</value>
+        <value>2x</value>
+        <value>4x</value>
+        <value>8x</value>
+      </values>
+    </feature>
+
+    <feature>
+      <name>Camera.ExposureTime</name>
+      <type>float</type>
+      <module>camera</module>
+	  <value>2</value>
+	  <min>0.009</min>
+	  <max>400</max>
+    </feature>
+
+	<feature>
+      <name>Camera.ExposureTime.Auto</name>
+      <type>boolean</type>
+      <module>camera</module>
+	  <value>false</value>
+    </feature>
+	
+    <feature>
+      <name>Camera.FrameRate</name>
+      <type>float</type>
+      <module>camera</module>
+	  <value>50</value>
+	  <min>3</min>
+	  <max>10000</max>
+	  <stopacquisition>true</stopacquisition>
+    </feature>
+
+    <feature>
+      <name>Camera.FullROI</name>
+      <type>command</type>
+      <module>grabber</module>
+    </feature>
+
+    <feature>
+      <name>Camera.Pixel.Height</name>
+      <type>float</type>
+      <readonly>true</readonly>
+      <module>grabber</module>
+      <value></value>
+    </feature>
+
+    <feature>
+      <name>Camera.Pixel.Width</name>
+      <type>float</type>
+      <readonly>true</readonly>
+      <module>grabber</module>
+      <value></value>
+    </feature>
+
+    <feature>
+      <name>Camera.Sensor.Height</name>
+      <type>integer</type>
+      <module>grabber</module>
+      <readonly>true</readonly>
+      <value>1082</value>
+    </feature>
+
+    <feature>
+      <name>Camera.Sensor.Width</name>
+      <type>integer</type>
+      <module>grabber</module>
+      <readonly>true</readonly>
+      <value>1312</value>
+    </feature>
+
+    <feature>
+      <name>Camera.Trigger.Mode</name>
+	  <module>camera</module>
+      <type>enumeration</type>
+      <values>
+        <default>Internal</default>
+        <value>Internal</value>
+        <value>External</value>
+      </values>
+	  <stopacquisition>true</stopacquisition>
+    </feature>
+
+	<feature>
+      <name>Camera.Trigger.InternalExposure</name>
+      <type>boolean</type>
+	  <module>camera</module>
+      <value>true</value>
+    </feature>
+
+	<feature>
+		<name>Camera.Trigger.Interleave</name>
+		<type>boolean</type>
+		<module>camera</module>
+		<value>true</value>
+	</feature>
+		
+    <feature>
+      <name>Camera.Image.SizeBytes</name>
+      <module>grabber</module>
+      <type>integer</type>
+      <readonly>true</readonly>
+    </feature>
+
+    <feature>
+      <name>Camera.Image.SizePixels</name>
+      <module>grabber</module>
+      <type>integer</type>
+      <readonly>true</readonly>
+    </feature>
+
+	<feature>
+      <name>Camera.Binning.Spectral</name>
+      <type>enumeration</type>
+      <module>camera</module>
+      <module>grabber</module>
+      <values>
+        <default>1</default>
+		<value>1</value>
+        <value>2</value>
+        <value>4</value>
+        <value>8</value>
+      </values>
+      <stopacquisition>true</stopacquisition>
+    </feature>
+
+    <feature>
+      <name>Camera.Binning.Spatial</name>
+      <type>enumeration</type>
+      <module>camera</module>
+      <module>grabber</module>
+      <values>
+        <default>1</default>
+        <value>1</value>
+        <value>2</value>
+        <value>4</value>
+        <value>8</value>
+      </values>
+      <stopacquisition>true</stopacquisition>
+    </feature>
+
+    <feature>
+    <name>Camera.Binning.HardwareModes</name>
+      <type>enumeration</type>
+      <module>grabber</module>
+      <module>camera</module>
+      <values>
+          <value>1x1</value>
+		  <value>2x1</value>
+		  <value>4x1</value>
+		  <value>8x1</value>
+		  <value>1x2</value>
+		  <value>2x2</value>
+		  <value>4x2</value>
+		  <value>8x2</value>
+		  <value>1x4</value>
+		  <value>2x4</value>
+		  <value>4x4</value>
+		  <value>8x4</value>
+		  <value>1x8</value>
+		  <value>2x8</value>
+		  <value>4x8</value>
+		  <value>8x8</value>
+      </values>
+      <readonly>true</readonly>
+    </feature>
+	
+	<feature>
+		<name>Camera.Binning.Average</name>
+		<module>grabber</module>
+		<module>camera</module>
+		<type>boolean</type>
+		<value>true</value>
+	</feature>
+	
+	<feature>
+		<name>Camera.Binning.Average.IsHardware</name>
+		<module>grabber</module>
+		<type>boolean</type>
+		<readonly>true</readonly>
+		<value>true</value>
+	</feature>
+	
+    <feature>
+      <name>Camera.Image.Width</name>
+      <type>integer</type>
+      <module>grabber</module>
+      <readonly>true</readonly>
+    </feature>
+	
+    <feature>
+      <name>Camera.Image.Height</name>
+      <type>integer</type>
+      <module>grabber</module>
+      <readonly>true</readonly>
+    </feature>
+
+	<feature>
+      <name>Camera.Image.Transformation</name>
+	  <module>camera</module>
+	  <module>grabber</module>
+	  <type>enumeration</type>
+	  <values>
+		<default>No transformation</default>
+		<value>No transformation</value>
+		<value>Transpose</value>
+		<value>Rotate 90 CW</value>
+		<value>Rotate 90 CCW</value>
+		<value>Rotate 180</value>
+		<value>Rotate 90 CW and Flip Vertical</value>
+		<value>Flip Horizontal</value>
+		<value>Flip Vertical</value>
+	  </values>
+      <stopacquisition>true</stopacquisition>
+    </feature>
+    
+	<feature>
+      <name>Camera.Image.HorizontalFlip.IsHardware</name>
+	  <module>grabber</module>
+	  <module>camera</module>
+      <type>boolean</type>
+      <readonly>true</readonly>
+	  <value>false</value>      
+    </feature>
+	
+	<feature>
+      <name>Camera.Image.VerticalFlip.IsHardware</name>
+	  <module>grabber</module>
+	  <module>camera</module>
+      <type>boolean</type>
+      <readonly>true</readonly>
+	  <value>false</value>
+    </feature>
+	
+	<feature>
+      <name>Camera.Image.Rotate.IsHardware</name>
+      <module>grabber</module>
+	  <module>camera</module>
+	  <type>boolean</type>
+      <readonly>true</readonly>
+	  <value>false</value>
+    </feature>
+
+	<feature>
+	  <name>Camera.Image.ReadoutTime</name>
+	  <module>camera</module>
+	  <type>float</type>
+      <readonly>true</readonly>
+	  <value>0.09</value>
+	</feature>
+
+	<feature>
+	  <name>Camera.Temperature</name>
+	  <module>camera</module>
+	  <type>float</type>
+	  <readonly>true</readonly>
+	</feature>
+	
+	<feature>
+	  <name>Camera.CheckTemperatures</name>
+	  <module>camera</module>
+	  <type>command</type>
+	</feature>
+	
+        
+	<!-- Shutter features -->
+	
+	
+    <feature>
+      <name>Camera.OpenShutter</name>
+      <type>command</type>
+	  <module>camera</module>
+	  <module>grabber</module>
+	</feature>
+	
+	<feature>
+      <name>Camera.CloseShutter</name>
+	  <type>command</type>
+	  <module>camera</module>
+	  <module>grabber</module>
+	</feature>
+	
+	<feature>
+      <name>Camera.Shutter.IsOpen</name>
+      <type>boolean</type>
+      <readonly>true</readonly>
+	  <module>camera</module>
+	</feature>
+	
+	<feature>
+      <name>Camera.Shutter.IsConnected</name>
+	  <module>camera</module>
+      <type>boolean</type>
+      <readonly>true</readonly>
+	</feature>
+	
+    <!-- Aberration correction features -->
+    
+    <feature>
+      <name>Camera.Image.AberrationCorrection.Enabled</name>
+	  <module>camera</module>
+	  <type>boolean</type>
+      <readonly>false</readonly>
+	  <value>true</value>
+    </feature>
+    
+    <feature>
+      <name>Camera.Image.AberrationCorrection.Keystone.FilePath</name>
+      <type>string</type>
+      <module>camera</module>
+      <readonly>false</readonly>
+      <value></value>
+    </feature>
+
+	<feature>
+      <name>Camera.Image.AberrationCorrection.Smile.FilePath</name>
+      <type>string</type>
+      <module>camera</module>
+      <readonly>false</readonly>
+      <value></value>
+    </feature>
+	
+	<feature>
+      <name>Camera.Image.AberrationCorrection.Update</name>
+      <type>command</type>
+      <module>camera</module>
+    </feature>
+	
+	<feature>
+      <name>Camera.Image.AberrationCorrection.Update.Progress</name>
+      <type>float</type>
+      <module>camera</module>
+    </feature>
+	
+	<feature>
+      <name>Camera.Image.AberrationCorrection.SaveToFlash</name>
+      <type>command</type>
+      <module>camera</module>
+    </feature>
+	
+	<feature>
+      <name>Camera.Image.AberrationCorrection.LoadFromFlash</name>
+      <type>command</type>
+      <module>camera</module>
+    </feature>
+	
+    <feature>
+        <name>Camera.Shutter.VoltagePump.TimeoutInHours</name>
+        <type>integer</type>
+        <module>camera</module>
+        <value>0</value>
+    </feature>
+  </features>
+
+</ssp>

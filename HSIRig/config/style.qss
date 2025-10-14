@@ -1,0 +1,40 @@
+
+QTabWidget {
+    background-color: #3c3c3c;
+}
+
+QGroupBox {
+    font-weight: bold;
+    border: 1px solid #555555;
+    border-radius: 5px;
+    margin-top: 10px;
+    color: #dddddd;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 3px;
+}
+
+QPushButton {
+    background-color: #3c3c3c;
+    color: #dddddd;
+    border: none;
+    padding: 10px;
+    text-align: center;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+QPushButton:hover {
+    background-color: #5c5c5c;
+}
+
+QLabel {
+    font-size: 14px;
+    color: #dddddd;
+}
+

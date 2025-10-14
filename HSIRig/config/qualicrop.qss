@@ -1,0 +1,238 @@
+/* -------------------------------------------------
+   Dark cohesive theme for your Hyperspectral Scanner GUI
+   Accent: #5aa7ff  |  BG: #2f2f2f  |  Panels: #3a3a3a  |  Text: #dddddd
+   ------------------------------------------------- */
+
+/* Base defaults */
+* {
+    color: #dddddd;
+    selection-background-color: #5aa7ff;
+    selection-color: #101010;
+}
+
+QWidget {
+    background-color: #2f2f2f;
+    color: #dddddd;
+    font-size: 14px;
+}
+
+/* Main window, tabs area and panels */
+QMainWindow, QDialog, QFrame {
+    background-color: #2f2f2f;
+}
+
+/* Group boxes */
+QGroupBox {
+    background-color: #3a3a3a;
+    border: 1px solid #555555;
+    border-radius: 6px;
+    margin-top: 12px;
+    padding-top: 18px;  /* space for the title */
+    font-weight: 600;
+    color: #dddddd;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 6px;
+    color: #eeeeee;
+}
+
+/* Labels */
+QLabel {
+    color: #dddddd;
+    font-size: 14px;
+}
+
+/* Buttons */
+QPushButton {
+    background-color: #3a3a3a;
+    color: #dddddd;
+    border: 1px solid #555555;
+    padding: 8px 12px;
+    border-radius: 6px;
+}
+QPushButton:hover {
+    background-color: #474747;
+    border-color: #6a6a6a;
+}
+QPushButton:pressed {
+    background-color: #2e2e2e;
+    border-color: #5aa7ff;
+}
+QPushButton:disabled {
+    background-color: #2a2a2a;
+    color: #9a9a9a;
+    border-color: #444444;
+}
+
+/* Line edits / text edits / plain text */
+QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox {
+    background-color: #2f2f2f;
+    color: #e8e8e8;
+    border: 1px solid #555555;
+    border-radius: 6px;
+    padding: 4px 6px;
+    selection-background-color: #5aa7ff;
+}
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+    border: 1px solid #5aa7ff;
+    background-color: #343434;
+}
+
+/* Combo boxes */
+QComboBox {
+    background-color: #2f2f2f;
+    color: #e8e8e8;
+    border: 1px solid #555555;
+    border-radius: 6px;
+    padding: 2px 28px 2px 6px; /* room for the arrow */
+}
+QComboBox:focus {
+    border-color: #5aa7ff;
+    background-color: #343434;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 22px;
+    border-left: 1px solid #555555;
+    background: #3a3a3a;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+QComboBox::down-arrow {
+    width: 10px;
+    height: 10px;
+    image: none;
+}
+QComboBox QAbstractItemView {
+    background-color: #2f2f2f;
+    color: #e8e8e8;
+    border: 1px solid #555555;
+    selection-background-color: #5aa7ff;
+    selection-color: #101010;
+}
+
+/* Tabs */
+QTabWidget {
+    background-color: #2f2f2f;
+}
+QTabWidget::pane {
+    border: 1px solid #555555;
+    border-radius: 6px;
+    background: #3a3a3a;
+    top: -1px;
+}
+QTabBar::tab {
+    background: #3a3a3a;
+    color: #dddddd;
+    border: 1px solid #555555;
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    padding: 6px 14px;
+    margin-right: 2px;
+}
+QTabBar::tab:selected {
+    background: #2f2f2f;
+    color: #ffffff;
+    border-color: #5aa7ff;
+}
+QTabBar::tab:hover {
+    background: #444444;
+}
+
+/* Menus */
+QMenuBar {
+    background-color: #2f2f2f;
+    color: #dddddd;
+}
+QMenuBar::item {
+    background: transparent;
+    padding: 4px 8px;
+}
+QMenuBar::item:selected {
+    background: #444444;
+}
+QMenu {
+    background-color: #2f2f2f;
+    color: #dddddd;
+    border: 1px solid #555555;
+}
+QMenu::item:selected {
+    background-color: #5aa7ff;
+    color: #101010;
+}
+
+/* Status bar */
+QStatusBar {
+    background-color: #2f2f2f;
+    color: #cfcfcf;
+    border-top: 1px solid #555555;
+}
+
+/* Scroll bars */
+QScrollBar:vertical {
+    background: #2f2f2f;
+    width: 12px;
+    margin: 12px 0 12px 0;
+}
+QScrollBar::handle:vertical {
+    background: #5a5a5a;
+    min-height: 24px;
+    border-radius: 6px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #6a6a6a;
+}
+QScrollBar::sub-line:vertical,
+QScrollBar::add-line:vertical {
+    background: #2f2f2f;
+    height: 12px;
+}
+QScrollBar:horizontal {
+    background: #2f2f2f;
+    height: 12px;
+    margin: 0 12px 0 12px;
+}
+QScrollBar::handle:horizontal {
+    background: #5a5a5a;
+    min-width: 24px;
+    border-radius: 6px;
+}
+QScrollBar::handle:horizontal:hover {
+    background: #6a6a6a;
+}
+QScrollBar::sub-line:horizontal,
+QScrollBar::add-line:horizontal {
+    background: #2f2f2f;
+    width: 12px;
+}
+
+/* Tooltips */
+QToolTip {
+    background-color: #3a3a3a;
+    color: #eeeeee;
+    border: 1px solid #5aa7ff;
+    padding: 4px 6px;
+}
+
+/* Make the camera area truly black (better for imagery) */
+QGroupBox#cameraFeedGroupBox {
+    background-color: #000000;
+}
+QGroupBox#cameraFeedGroupBox > QWidget {
+    background-color: #000000; /* hits the FigureCanvasQTAgg host widget */
+}
+
+/* Fine-tune small "..." buttons */
+QPushButton#btnOutputFolder {
+    min-width: 28px;
+    padding: 4px;
+}
+
+/* Disabled text contrast */
+*:disabled {
+    color: #9a9a9a;
+}
