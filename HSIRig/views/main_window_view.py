@@ -419,6 +419,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #if message != 'OK':
         #    self.btnStartAcquire.setEnabled(True)
         #self.status_label.setText("Status: " + str(message))
+    def on_scan_status_update(self, message):
+        """Update status label with scan progress"""
+        self.status_label.setText(f"Status: {message}")
+        
 
     def btnStopAcquire_clicked(self):
         self.btnStopAcquire.setEnabled(False)
