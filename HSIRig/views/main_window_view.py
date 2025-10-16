@@ -423,7 +423,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """Update status label with scan progress"""
         self.status_label.setText(f"Status: {message}")
         
-
+    def on_scan_complete(self):
+        """Handle scan completion"""
+        self.btnStartAcquire.setEnabled(True)
+        self.btnStopAcquire.setEnabled(False)
+        self.specSensor.command('Acquisition.Stop')
+        self.status_label.setText("Status: Scan completed")
+        
+        # Disconnect controller if it exists
+        if hasattr(self, 'scan_worker') and self.scan_worker.rig_controller:
+            self.scan_worker.rig_controller.disconnect()
+            
+    def on_scan_error(self, error_message):
+        """Handle scan errors"""
+        self.btnStartAcquire.setEnabled(True)
+        self.btnStopAcquire.setEnabled(False)
+        self.status_label.setText(f"Error: {error_message}")
+        
+        # Try to stop acquisition
+        try:
+            self.specSensor.command('Acquisition.Stop')
+        except:
+            pass
     def btnStopAcquire_clicked(self):
         self.btnStopAcquire.setEnabled(False)
         self.btnStartAcquire.setEnabled(True)
