@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import QMainWindow
 from ui.main_window import Ui_MainWindow
 from controllers.mock_camera import MockCamera
 from controllers.mock_actuator import MockActuator
-from controllers.scanner_controller import ScannerController
+from controllers.rig_controller import RIGController
 from camera_feed_widget import CameraFeedWidget
 import os
 import time
@@ -271,7 +271,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnStartAcquire.setEnabled(False)
 
         controller=RIGController()
-        controller.connect(port="COM3")
+        controller.connect(port="COM3") #TODO: this port should be selected via a dropdown box
 
         capture_lambda = lambda: (self.specSensor.command('Acquisition.Start'),
                              self.btnStopAcquire.setEnabled(True))
@@ -301,7 +301,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #self.status_label.setText("Status: " + str(message))
 
     def home_bed_clicked(self):
-        scanner_controller=ScannerController()
+        scanner_controller=RIGController()
         scanner_controller.send_command('connect')
         scanner_controller.send_command('home')
 
