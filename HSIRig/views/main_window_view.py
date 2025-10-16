@@ -35,6 +35,7 @@ class ScanWorkerThread(QThread):
     def stop(self):
         """Stop the scan routine"""
         self._is_running = False
+        # TODO: implement e-stoping for the controller if controller is connected and then disconnect
 
     def run(self):
         """This runs in a separate thread"""
@@ -378,7 +379,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         # Create and connect the RIG controller
         controller = RIGController()
-        controller.connect(port="COM3")
+        controller.connect(port="COM3") #TODO: this port should be selected via a dropdown box
         
         # Create worker thread
         self.scan_worker = ScanWorkerThread(
@@ -394,31 +395,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Start the thread
         self.scan_worker.start()
 
-
-    #   Pre-Async/Thread:
-        # self.btnStartAcquire.setEnabled(False)
-
-        # controller=RIGController()
-        # controller.connect(port="COM3") #TODO: this port should be selected via a dropdown box
-
-        # capture_lambda = lambda: (self.specSensor.command('Acquisition.Start'),
-        #                      self.btnStopAcquire.setEnabled(True))
-        # self.run_scan_routine(
-        #     rig_controller=controller,
-        #     camera_capture_function=capture_lambda
-        # )
-        # controller.disconnect()
-
-# Old? :
-        ##self.specSensor.command('Acquisition.Start')
-        ##self.btnStopAcquire.setEnabled(True)
-        ##command_status, message = send_command('START_ACQUISITION')
-        ##receive_data()
-        ##tcp_listener()
-
-        #if message != 'OK':
-        #    self.btnStartAcquire.setEnabled(True)
-        #self.status_label.setText("Status: " + str(message))
     def on_scan_status_update(self, message):
         """Update status label with scan progress"""
         self.status_label.setText(f"Status: {message}")
