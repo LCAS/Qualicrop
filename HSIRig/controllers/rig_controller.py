@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-grblHAL Controller Class
-Handles communication with grblHAL-controlled BTT SKR Pico over USB serial
+File: grblHAL Controller Class (RIGController)
+Author: Robert Stevenson
+Handles communication with grblHAL-controlled BTT SKR Pico over USB serial for the HSI Rig
 """
 
 import serial
@@ -161,7 +162,7 @@ class RIGController:
             return False
 
         try:
-            distance = -1 * float(distance)
+            distance = float(distance)
         except ValueError:
             print("Invalid distance! Please enter a number.")
             return False
@@ -177,7 +178,7 @@ class RIGController:
         else:
             command = f"{move_type} {axis}{distance} F{self.feed_rate}"  # this feedrate is from setting it before in this program
 
-        print(f"Moving {axis} axis by {distance}mm...")
+        print(f"Moving {axis} axis to absolute position {distance}mm...")
         response = self.send_command(command)
         print(f"Movement response: {response}")
         return True
@@ -203,3 +204,112 @@ class RIGController:
         time.sleep(1)  # Give controller time to reset
         print(f"Reset response: {response}")
         return response
+
+    def get_current_position(self):
+        """Get current machine position from status"""
+        response = self.send_command("?")
+        if response and 'MPos:' in response:
+            # Parse position from status response like: <Idle|MPos:0.000,10.000,5.000|...>
+            try:
+                pos_start = response.index('MPos:') + 5
+                pos_end = response.index('|', pos_start)
+                positions = response[pos_start:pos_end].split(',')
+                # Assuming Y is second, Z is third (no X-axis)
+                return {'Y': float(positions[1]), 'Z': float(positions[2])}
+            except (ValueError, IndexError):
+                print("Could not parse position from response")
+                return None
+        return None
+
+    # THIS IS PURELY FOR ILLUSTRATIVE/TESTING PURPOSE
+    def run_test_routine(self, cam_height=0.0, scan_speed=443.33, init_pos=80.0, scan_pos=650.0):
+        """
+        Run a test routine for scanning:
+        1. Reset controller and home axes
+        2. Move Y axis to position 80 at rate 4000 mm/min
+        3. Wait until position is reached
+        4. Set rate to 443 mm/min and move to position 650
+        5. Move back to position 80 at rate 4000 mm/min
+        """
+
+        TIMEOUT = 95
+        TRAVEL_SPEED = 6000
+
+        print("\n=== Starting Test Routine ===\n")
+
+        if not self.serial_conn or not self.serial_conn.is_open:
+            print("ERROR: Not connected to controller!")
+            return False
+
+        # Step 1: Reset and home
+        print("Step 1: Resetting controller and homing axes...")
+        self.reset_controller()
+        time.sleep(2)
+
+        # Home without user confirmation
+        print("Homing Y and Z axes...")
+        response = self.home_axes()
+        print(f"Homing response: {response}")
+
+        # Wait for homing to complete by checking status
+        print("Waiting for homing to complete...")
+        start_time = time.time()
+        while time.time() - start_time < TIMEOUT:  # HOMING take a max time of 90 secs (95s is safe)
+            pos = self.get_current_position()
+            if pos is not None and pos["Y"] == 0.0 and pos["Z"] == 0.0:  # check to see if our position are y = 0mm and z = 0mm, if true exit the waiting
+                print(f"Homing finished early @ \n{pos}")
+                break  # Condition met
+            time.sleep(0.1)  # Check every 100ms
+        print("Homing finished")
+
+        # Step 3: move and wait till in camara scan init position
+        print("moving into initial pos")
+        self.set_feed_rate(TRAVEL_SPEED)
+        # move to scan init pos
+        self.move_axis("Y", init_pos)
+
+        # wait till we at init position
+        while time.time() - start_time < TIMEOUT:
+            pos = self.get_current_position()
+            if pos is not None and pos["Y"] == init_pos and pos["Z"] == cam_height:  # check to see if our position are y = 0mm and z = -758mm, if true exit the waiting
+                print("At initial position early")
+                break  # Condition met
+            time.sleep(0.1)  # Check every 100ms
+        print("At initial position")
+
+        # Step 4: Set rate to 443 and move to 650
+        print("\nStep 4: Moving to Y position 650mm at 443mm/min...")
+        # set speed to match frame rate of camera
+        self.set_feed_rate(scan_speed)
+
+        ## START CAMERA CAPTURE
+        print(f"!!! START CAMERA CAPTURE !!!")
+        # TODO: Run Camera capture function
+
+        # move so that we do a full bed scan
+        self.move_axis("Y", scan_pos)
+        # wait till we at do a full bed scan
+        while time.time() - start_time < TIMEOUT:
+            pos = self.get_current_position()
+            if pos is not None and pos["Y"] == scan_pos and pos["Z"] == cam_height:  # check to see if our position are y = 0mm and z = -758mm, if true exit the waiting
+                print("Finished Full bed scan early")
+                break  # Condition met
+            time.sleep(0.1)  # Check every 100ms
+        print("Full bed scann finished")
+
+        print("\nStep 5: Moving back to Y position 80mm at 4000mm/min...")
+        print("move back into initial pos")
+        self.set_feed_rate(TRAVEL_SPEED)
+        # move to scan init pos
+        self.move_axis("Y", init_pos)
+
+        # wait till we at init position
+        while time.time() - start_time < TIMEOUT:
+            pos = self.get_current_position()
+            if pos is not None and pos["Y"] == init_pos and pos["Z"] == cam_height:  # check to see if our position are y = 0mm and z = -758mm, if true exit the waiting
+                print("Back to initial position early early")
+                break  # Condition met
+            time.sleep(0.1)  # Check every 100ms
+
+        print("\n=== Test Routine Completed Successfully ===\n")
+        return True
