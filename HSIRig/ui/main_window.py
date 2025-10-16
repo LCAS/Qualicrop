@@ -361,7 +361,8 @@ class Ui_MainWindow(object):
             return
 
         # open first profile (or pick by name)
-        err, _ = self.specSensor.open(profiles[16], autoInit=True)
+        # SELECT CAMERA VIA THE INDEX (FX10e == 15)
+        err, _ = self.specSensor.open(profiles[15], autoInit=True)
         if err != 0:
             QtWidgets.QMessageBox.critical(self, "SpecSensor", f"Open failed: {err}")
             return
