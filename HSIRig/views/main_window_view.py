@@ -2,7 +2,7 @@
 Details
 """
 # imports
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, QThread, pyqtSignal
 from PyQt5.QtWidgets import QMainWindow
 from ui.main_window import Ui_MainWindow
 from controllers.mock_camera import MockCamera
@@ -15,6 +15,111 @@ from controllers.command_client import send_command
 from controllers.rig_controller import RIGController
 
 
+class ScanWorkerThread(QThread):
+    # signal that enable comms back to gui main thread
+    status_update = pyqtSignal(str)
+    scan_complete = pyqtSignal()
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self, main_window, rig_controller, cam_height=0.0, scan_speed=443.33, 
+                 init_pos=80.0, scan_pos=650.0):
+        super().__init__()
+        self.main_window = main_window
+        self.rig_controller = rig_controller
+        self.cam_height = cam_height
+        self.scan_speed = scan_speed
+        self.init_pos = init_pos
+        self.scan_pos = scan_pos
+        self._is_running = True
+    
+    def stop(self):
+        """Stop the scan routine"""
+        self._is_running = False
+
+    def run(self):
+        """This runs in a separate thread"""
+        try:
+            TIMEOUT = 95
+            TRAVEL_SPEED = 6000
+            
+            self.status_update.emit("Starting scan routine...")
+            
+            if not self.rig_controller.serial_conn or not self.rig_controller.serial_conn.is_open:
+                self.error_occurred.emit("ERROR: Not connected to controller!")
+                return
+                
+            # Step 1: Reset and home
+            self.status_update.emit("Resetting controller and homing axes...")
+            self.rig_controller.reset_controller()
+            time.sleep(2)
+            
+            response = self.rig_controller.home_axes()
+            
+            # Wait for homing with interruptible sleep
+            self.status_update.emit("Waiting for homing to complete...")
+            start_time = time.time()
+            while time.time() - start_time < TIMEOUT and self._is_running:
+                pos = self.rig_controller.get_current_position()
+                if pos is not None and pos["Y"] == 0.0 and pos["Z"] == 0.0:
+                    break
+                self.msleep(100)  # Use QThread's msleep for better integration
+                
+            if not self._is_running:
+                return
+                
+            # Move to initial position
+            self.status_update.emit("Moving to initial position...")
+            self.rig_controller.set_feed_rate(TRAVEL_SPEED)
+            self.rig_controller.move_axis("Y", self.init_pos)
+            
+            start_time = time.time()
+            while time.time() - start_time < TIMEOUT and self._is_running:
+                pos = self.rig_controller.get_current_position()
+                if pos is not None and pos["Y"] == self.init_pos and pos["Z"] == self.cam_height:
+                    break
+                self.msleep(100)
+                
+            if not self._is_running:
+                return
+                
+            # Start acquisition
+            self.status_update.emit("Starting camera acquisition...")
+            self.msleep(2000)
+            self.main_window.specSensor.command('Acquisition.Start')
+            
+            # Start scan
+            self.status_update.emit(f"Scanning to position {self.scan_pos}...")
+            self.rig_controller.set_feed_rate(self.scan_speed)
+            self.rig_controller.move_axis("Y", self.scan_pos)
+            
+            # Wait for scan completion
+            start_time = time.time()
+            while time.time() - start_time < TIMEOUT and self._is_running:
+                pos = self.rig_controller.get_current_position()
+                if pos is not None and pos["Y"] == self.scan_pos and pos["Z"] == self.cam_height:
+                    break
+                self.msleep(100)
+                
+            if not self._is_running:
+                return
+                
+            # Return to initial position
+            self.status_update.emit("Returning to initial position...")
+            self.rig_controller.set_feed_rate(TRAVEL_SPEED)
+            self.rig_controller.move_axis("Y", self.init_pos)
+            
+            start_time = time.time()
+            while time.time() - start_time < TIMEOUT and self._is_running:
+                pos = self.rig_controller.get_current_position()
+                if pos is not None and pos["Y"] == self.init_pos and pos["Z"] == self.cam_height:
+                    break
+                self.msleep(100)
+                
+            self.status_update.emit("Scan routine completed successfully!")
+            self.scan_complete.emit()
+            
+        except Exception as e:
+            self.error_occurred.emit(f"Error during scan: {str(e)}")
 
 # class
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -269,18 +374,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def btnStartAcquire_clicked(self):
         self.btnStartAcquire.setEnabled(False)
-
-        controller=RIGController()
-        controller.connect(port="COM3") #TODO: this port should be selected via a dropdown box
-
-        capture_lambda = lambda: (self.specSensor.command('Acquisition.Start'),
-                             self.btnStopAcquire.setEnabled(True))
-        self.run_scan_routine(
-            rig_controller=controller,
-            camera_capture_function=capture_lambda
+        self.btnStopAcquire.setEnabled(True)
+        
+        # Create and connect the RIG controller
+        controller = RIGController()
+        controller.connect(port="COM3")
+        
+        # Create worker thread
+        self.scan_worker = ScanWorkerThread(
+            main_window=self,
+            rig_controller=controller
         )
-        controller.disconnect()
+        
+        # Connect signals
+        self.scan_worker.status_update.connect(self.on_scan_status_update)
+        self.scan_worker.scan_complete.connect(self.on_scan_complete)
+        self.scan_worker.error_occurred.connect(self.on_scan_error)
+        
+        # Start the thread
+        self.scan_worker.start()
 
+
+    #   Pre-Async/Thread:
+        # self.btnStartAcquire.setEnabled(False)
+
+        # controller=RIGController()
+        # controller.connect(port="COM3") #TODO: this port should be selected via a dropdown box
+
+        # capture_lambda = lambda: (self.specSensor.command('Acquisition.Start'),
+        #                      self.btnStopAcquire.setEnabled(True))
+        # self.run_scan_routine(
+        #     rig_controller=controller,
+        #     camera_capture_function=capture_lambda
+        # )
+        # controller.disconnect()
+
+# Old? :
         ##self.specSensor.command('Acquisition.Start')
         ##self.btnStopAcquire.setEnabled(True)
         ##command_status, message = send_command('START_ACQUISITION')
@@ -294,7 +423,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def btnStopAcquire_clicked(self):
         self.btnStopAcquire.setEnabled(False)
         self.btnStartAcquire.setEnabled(True)
+        
+        # Stop the worker thread if it exists
+        if hasattr(self, 'scan_worker') and self.scan_worker.isRunning():
+            self.scan_worker.stop()
+            self.scan_worker.wait(2000)  # Wait up to 2 seconds for thread to finish
+            
+        # Stop acquisition
         self.specSensor.command('Acquisition.Stop')
+        self.status_label.setText("Status: Stopped")
+
+    #   Pre-Async/Thread:
+        # self.btnStopAcquire.setEnabled(False)
+        # self.btnStartAcquire.setEnabled(True)
+        # self.specSensor.command('Acquisition.Stop')
         #command_status, message = send_command('STOP_ACQUISITION')
         #if message != 'OK':
         #    self.btnStopAcquire.setEnabled(True)
