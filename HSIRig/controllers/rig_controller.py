@@ -220,6 +220,11 @@ class RIGController:
                 print("Could not parse position from response")
                 return None
         return None
+    
+    def is_connected(self):
+        if self.serial_conn:
+            return self.serial_conn.is_open
+        return False
 
     # THIS IS PURELY FOR ILLUSTRATIVE/TESTING PURPOSE
     def run_test_routine(self, cam_height=0.0, scan_speed=443.33, init_pos=80.0, scan_pos=650.0):

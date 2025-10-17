@@ -21,8 +21,14 @@ class ScanWorkerThread(QThread):
     scan_complete = pyqtSignal()
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, main_window, rig_controller, cam_height=0.0, scan_speed=443.33, 
-                 init_pos=80.0, scan_pos=650.0):
+    def __init__(self, 
+                 main_window, 
+                 rig_controller: RIGController, 
+                 cam_height: float=0.0, 
+                 scan_speed: float=443.33, 
+                 init_pos: float=80.0, 
+                 scan_pos: float=650.0
+                 ):
         super().__init__()
         self.main_window = main_window
         self.rig_controller = rig_controller
@@ -35,10 +41,13 @@ class ScanWorkerThread(QThread):
     def stop(self):
         """Stop the scan routine"""
         self._is_running = False
-        # TODO: implement e-stoping for the controller if controller is connected and then disconnect
-
+        # check if we still have a controller that is connected first
+        if self.rig_controller is not None and self.rig_controller.is_connected():
+            self.rig_controller.emergency_stop() # software e-stop the controller
+            self.rig_controller.disconnect() # disconnect from the controller
+            
     def run(self):
-        """This runs in a separate thread"""
+        """This runs the scan routine on in a separate thread"""
         try:
             TIMEOUT = 95
             TRAVEL_SPEED = 6000
@@ -381,7 +390,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         controller = RIGController()
         controller.connect(port="COM3") #TODO: this port should be selected via a dropdown box
         
-        # Create worker thread
+        # Create worker thread for the scan routine, so that we don't lock the main thread the GUI is locked to.
         self.scan_worker = ScanWorkerThread(
             main_window=self,
             rig_controller=controller
