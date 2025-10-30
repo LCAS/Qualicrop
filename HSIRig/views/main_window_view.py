@@ -64,6 +64,7 @@ class ScanWorkerThread(QThread):
             time.sleep(2)
             
             response = self.rig_controller.home_axes()
+            print(f"Homing responce during routine:\n {response}")
             
             # Wait for homing with interruptible sleep
             self.status_update.emit("Waiting for homing to complete...")
@@ -166,12 +167,36 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         # Setup the `setup` tab in the UI for the Rig Control and connections
         self.setup_rig_ui()
+
     def setup_rig_ui(self):
 
         # setup the buttons for the rig control/settinga page
         self.configure_buttons()
 
+        # get the available com ports and add them to combobox list
+        self.update_comm_port_list()
+        # lets also udate the list everytime we change to the setup tab
+        self.tabWidget.currentChanged.connect(self.on_tab_changed)
 
+    def on_tab_changed(self, index):
+        # tab 1 (index=1) is the Setup tab for the Rig
+        if index == 1:
+            self.update_comm_port_list()
+            
+    def update_comm_port_list(self):
+        """Refresh the available COM ports in the dropdown"""
+        self.cmbBoxCommPortSelect.clear()  # Clear previous items
+
+        # get the list of ports using the rig controller
+        ports = RIGController.list_ports(self=RIGController) 
+        if not ports:
+            self.cmbBoxCommPortSelect.addItem("No ports found")
+            self.cmbBoxCommPortSelect.setEnabled(False)
+        else:
+            for port in ports:
+                display_text = f"{port.device} ({port.description})"
+                self.cmbBoxCommPortSelect.addItem(display_text, port.device)
+            self.cmbBoxCommPortSelect.setEnabled(True)
 
     def apply_stylesheet(self):
         # Load the stylesheet from the file
@@ -186,7 +211,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnRigDisconnect.clicked.connect(self.disconnect_controller)
 
         # Rig update settings button link
-        self.btnRigUpdateSettings.clicked.connect(self.)
+        self.btnRigUpdateSettings.clicked.connect(self.update_rig_settings)
 
         # Rig controller buttons configure
         self.btnHomeBed.clicked.connect(self.home_bed_action)
