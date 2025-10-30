@@ -248,7 +248,7 @@ class Ui_MainWindow(object):
         self.btnReset.setObjectName("btnReset")
         self.verticalLayout_11.addWidget(self.btnReset)
         self.groupBoxScanParam = QtWidgets.QGroupBox(self.tab_3)
-        self.groupBoxScanParam.setGeometry(QtCore.QRect(20, 190, 441, 231))
+        self.groupBoxScanParam.setGeometry(QtCore.QRect(20, 190, 441, 261))
         self.groupBoxScanParam.setObjectName("groupBoxScanParam")
         self.lblScanSpeed = QtWidgets.QLabel(self.groupBoxScanParam)
         self.lblScanSpeed.setGeometry(QtCore.QRect(0, 60, 181, 20))
@@ -301,6 +301,9 @@ class Ui_MainWindow(object):
         self.lblBedParam.setFont(font)
         self.lblBedParam.setAlignment(QtCore.Qt.AlignCenter)
         self.lblBedParam.setObjectName("lblBedParam")
+        self.btnRigUpdateSettings = QtWidgets.QPushButton(self.groupBoxScanParam)
+        self.btnRigUpdateSettings.setGeometry(QtCore.QRect(310, 220, 111, 32))
+        self.btnRigUpdateSettings.setObjectName("btnRigUpdateSettings")
         self.groupBoxRigConnection = QtWidgets.QGroupBox(self.tab_3)
         self.groupBoxRigConnection.setGeometry(QtCore.QRect(20, 50, 441, 101))
         self.groupBoxRigConnection.setObjectName("groupBoxRigConnection")
@@ -338,7 +341,7 @@ class Ui_MainWindow(object):
         self.line_3.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line_3.setObjectName("line_3")
         self.line_4 = QtWidgets.QFrame(self.tab_3)
-        self.line_4.setGeometry(QtCore.QRect(30, 420, 431, 20))
+        self.line_4.setGeometry(QtCore.QRect(30, 450, 431, 20))
         self.line_4.setFrameShape(QtWidgets.QFrame.HLine)
         self.line_4.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line_4.setObjectName("line_4")
@@ -486,6 +489,7 @@ class Ui_MainWindow(object):
         self.txtCameraPosition.setPlaceholderText(_translate("MainWindow", "Camera height position (in mm)"))
         self.lblMotionParam.setText(_translate("MainWindow", "Motion Parameters"))
         self.lblBedParam.setText(_translate("MainWindow", "Bed Parameters"))
+        self.btnRigUpdateSettings.setText(_translate("MainWindow", "Update Settings"))
         self.groupBoxRigConnection.setTitle(_translate("MainWindow", "Rig Controller Connection"))
         self.lblControlPort.setText(_translate("MainWindow", "Controller Port:"))
         self.cmbBoxCommPortSelect.setPlaceholderText(_translate("MainWindow", "Select Rig Controller Comm Port"))
@@ -496,6 +500,7 @@ class Ui_MainWindow(object):
         self.lblCurrentCameraPosition.setText(_translate("MainWindow", "Current Camera Position: "))
         self.chkHomeStatus_readonly.setText(_translate("MainWindow", "Homed:"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MainWindow", "Setup"))
+
 
     #TODO: This logic should be moved out of this file
     def _start_sensor_and_callback(self):

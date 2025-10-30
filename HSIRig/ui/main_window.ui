@@ -705,7 +705,7 @@
         <x>20</x>
         <y>190</y>
         <width>441</width>
-        <height>231</height>
+        <height>261</height>
        </rect>
       </property>
       <property name="title">
@@ -888,6 +888,19 @@
         <set>Qt::AlignCenter</set>
        </property>
       </widget>
+      <widget class="QPushButton" name="btnRigUpdateSettings">
+       <property name="geometry">
+        <rect>
+         <x>310</x>
+         <y>220</y>
+         <width>111</width>
+         <height>32</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Update Settings</string>
+       </property>
+      </widget>
      </widget>
      <widget class="QGroupBox" name="groupBoxRigConnection">
       <property name="geometry">
@@ -1015,7 +1028,7 @@
       <property name="geometry">
        <rect>
         <x>30</x>
-        <y>420</y>
+        <y>450</y>
         <width>431</width>
         <height>20</height>
        </rect>
