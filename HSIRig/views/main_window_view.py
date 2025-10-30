@@ -13,6 +13,7 @@ import os
 import time
 from controllers.command_client import send_command
 from controllers.rig_controller import RIGController
+import rig_settings
 
 
 class ScanWorkerThread(QThread):
@@ -49,8 +50,8 @@ class ScanWorkerThread(QThread):
     def run(self):
         """This runs the scan routine on in a separate thread"""
         try:
-            TIMEOUT = 95
-            TRAVEL_SPEED = 6000
+            rig_settings.RIG_TIMEOUT_READ_ONLY
+            rig_settings.RIG_TRAVEL_SPEED_READ_ONLY = 6000
             
             self.status_update.emit("Starting scan routine...")
             
@@ -69,7 +70,7 @@ class ScanWorkerThread(QThread):
             # Wait for homing with interruptible sleep
             self.status_update.emit("Waiting for homing to complete...")
             start_time = time.time()
-            while time.time() - start_time < TIMEOUT and self._is_running:
+            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
                 pos = self.rig_controller.get_current_position()
                 if pos is not None and pos["Y"] == 0.0 and pos["Z"] == 0.0:
                     break
@@ -80,11 +81,11 @@ class ScanWorkerThread(QThread):
                 
             # Move to initial position
             self.status_update.emit("Moving to initial position...")
-            self.rig_controller.set_feed_rate(TRAVEL_SPEED)
+            self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)
             self.rig_controller.move_axis("Y", self.init_pos)
             
             start_time = time.time()
-            while time.time() - start_time < TIMEOUT and self._is_running:
+            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
                 pos = self.rig_controller.get_current_position()
                 if pos is not None and pos["Y"] == self.init_pos and pos["Z"] == self.cam_height:
                     break
@@ -105,7 +106,7 @@ class ScanWorkerThread(QThread):
             
             # Wait for scan completion
             start_time = time.time()
-            while time.time() - start_time < TIMEOUT and self._is_running:
+            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
                 pos = self.rig_controller.get_current_position()
                 if pos is not None and pos["Y"] == self.scan_pos and pos["Z"] == self.cam_height:
                     break
@@ -116,11 +117,11 @@ class ScanWorkerThread(QThread):
                 
             # Return to initial position
             self.status_update.emit("Returning to initial position...")
-            self.rig_controller.set_feed_rate(TRAVEL_SPEED)
+            self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)
             self.rig_controller.move_axis("Y", self.init_pos)
             
             start_time = time.time()
-            while time.time() - start_time < TIMEOUT and self._is_running:
+            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
                 pos = self.rig_controller.get_current_position()
                 if pos is not None and pos["Y"] == self.init_pos and pos["Z"] == self.cam_height:
                     break
@@ -182,7 +183,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # tab 1 (index=1) is the Setup tab for the Rig
         if index == 1:
             self.update_comm_port_list()
-            
+
     def update_comm_port_list(self):
         """Refresh the available COM ports in the dropdown"""
         self.cmbBoxCommPortSelect.clear()  # Clear previous items
@@ -224,7 +225,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     
     # TODO: implement saving rig controller scanning config to globally accessable config file
     def update_rig_settings(self):
-        pass 
+        def update_txt_value(var, txtbox):
+            '''update the variable if the txtbox has values and return it is so, else keep value the same'''
+            value = txtbox.text()
+            if str(value) != "":
+                var = float(value) 
+            return var
+        
+        # Reassign the updated value back to rig_settings.RIG_SPEED, since Python passes floats by value (immutable);
+        # updating inside the function doesn't affect the original variable.
+        rig_settings.RIG_SPEED = update_txt_value(rig_settings.RIG_SPEED, self.txtSpeed)
+        rig_settings.RIG_BED_START = update_txt_value(rig_settings.RIG_BED_START, self.txtBedStartPosition)
+        rig_settings.RIG_BED_END = update_txt_value(rig_settings.RIG_BED_END, self.txtBedEndPosition)
+        rig_settings.RIG_CAM_HEIGHT = update_txt_value(rig_settings.RIG_CAM_HEIGHT, self.txtCameraPosition)
+
+        #debug prints
+        print(f"rig speed: {rig_settings.RIG_SPEED}")
+        print(f"rig bed start: {rig_settings.RIG_BED_START}")
+        print(f"rig bed end: {rig_settings.RIG_BED_END}")
+        print(f"rig cam height: {rig_settings.RIG_CAM_HEIGHT}")
 
     # TODO: Implement connecting to selected COM port from dropdown list
     def connect_controller(self):
