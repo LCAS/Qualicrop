@@ -172,11 +172,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.setStyleSheet(stylesheet)
 
     def configure_buttons(self):
-        self.scan.clicked.connect(self.start_scan)
-        self.stop.clicked.connect(self.stop_scan)
-        self.home_bed.clicked.connect(self.home_bed_action)
-        self.home_carriage.clicked.connect(self.home_carriage_action)
-        self.reset.clicked.connect(self.reset_scan)
+        self.btnScan.clicked.connect(self.start_scan)
+        self.btnStop.clicked.connect(self.stop_scan)
+        self.btnHomeBed.clicked.connect(self.home_bed_action)
+        self.btnHomeCarriage.clicked.connect(self.home_carriage_action)
+        self.btnReset.clicked.connect(self.reset_scan)
 
     def start_sensor(self):
         self._start_sensor_and_callback()

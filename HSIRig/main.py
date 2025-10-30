@@ -15,7 +15,7 @@ def main():
     main_window.btnApplyAdjust.clicked.connect(main_window.btnApplyAdjust_clicked)
     main_window.btnStartAcquire.clicked.connect(main_window.btnStartAcquire_clicked)
     main_window.btnStopAcquire.clicked.connect(main_window.btnStopAcquire_clicked)
-    main_window.home_bed.clicked.connect(main_window.home_bed_clicked)
+    main_window.btnHomeBed.clicked.connect(main_window.home_bed_clicked)
     main_window.apply_stylesheet()
     #main_window.camera_feed.plot_example()
     #camera_feed = MatplotlibWidget()
