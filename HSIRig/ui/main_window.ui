@@ -3,7 +3,7 @@
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="windowModality">
-   <enum>Qt::WindowModality::NonModal</enum>
+   <enum>Qt::NonModal</enum>
   </property>
   <property name="geometry">
    <rect>
@@ -18,16 +18,19 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QTabWidget" name="tabWidget">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>40</x>
-      <y>20</y>
+      <y>22</y>
       <width>1521</width>
       <height>821</height>
      </rect>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>1</number>
     </property>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
@@ -79,7 +82,7 @@
          <x>150</x>
          <y>60</y>
          <width>111</width>
-         <height>31</height>
+         <height>32</height>
         </rect>
        </property>
        <property name="text">
@@ -92,7 +95,7 @@
          <x>270</x>
          <y>60</y>
          <width>101</width>
-         <height>31</height>
+         <height>32</height>
         </rect>
        </property>
        <property name="text">
@@ -566,9 +569,6 @@
          <property name="text">
           <string>Camera Feed</string>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignmentFlag::AlignCenter</set>
-         </property>
         </widget>
        </item>
       </layout>
@@ -578,17 +578,17 @@
      <attribute name="title">
       <string>Setup</string>
      </attribute>
-     <widget class="QGroupBox" name="controlGroupBox">
+     <widget class="QGroupBox" name="groupBoxRigControl">
       <property name="geometry">
        <rect>
-        <x>620</x>
+        <x>500</x>
         <y>50</y>
         <width>231</width>
-        <height>321</height>
+        <height>371</height>
        </rect>
       </property>
       <property name="title">
-       <string>Controls</string>
+       <string>Rig Controls</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_11">
        <property name="spacing">
@@ -607,121 +607,541 @@
         <number>10</number>
        </property>
        <item>
-        <widget class="QPushButton" name="home_bed">
+        <widget class="QPushButton" name="btnHomeBed">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>32</height>
+          </size>
+         </property>
          <property name="text">
           <string>Home Bed</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="home_carriage">
+        <widget class="QPushButton" name="btnHomeCarriage">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>32</height>
+          </size>
+         </property>
          <property name="text">
           <string>Home Carriage</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="scan">
+        <widget class="QPushButton" name="btnWhiteStrip">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>32</height>
+          </size>
+         </property>
          <property name="text">
-          <string>Scan</string>
+          <string>Move to White Calibration Strip</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="stop">
+        <widget class="QPushButton" name="btnBlackStrip">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>32</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Move to Black Calibration Strip</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnScan">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>32</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Begin Scan</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnStop">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>32</height>
+          </size>
+         </property>
          <property name="text">
           <string>STOP</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="reset">
+        <widget class="QPushButton" name="btnReset">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>32</height>
+          </size>
+         </property>
          <property name="text">
-          <string>Reset</string>
+          <string>Reset Controller</string>
          </property>
         </widget>
        </item>
       </layout>
      </widget>
-     <widget class="QGroupBox" name="groupBox_4">
+     <widget class="QGroupBox" name="groupBoxScanParam">
       <property name="geometry">
        <rect>
-        <x>70</x>
-        <y>60</y>
-        <width>531</width>
-        <height>141</height>
+        <x>20</x>
+        <y>190</y>
+        <width>441</width>
+        <height>231</height>
        </rect>
       </property>
       <property name="title">
-       <string>Scanner</string>
+       <string>Scan Parameter</string>
       </property>
-      <widget class="QLabel" name="label_9">
+      <widget class="QLabel" name="lblScanSpeed">
        <property name="geometry">
         <rect>
-         <x>50</x>
-         <y>30</y>
-         <width>81</width>
-         <height>16</height>
+         <x>0</x>
+         <y>60</y>
+         <width>181</width>
+         <height>20</height>
         </rect>
        </property>
        <property name="text">
-        <string>Speed (mm/s)</string>
+        <string>Speed (mm/minute):</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
        </property>
       </widget>
-      <widget class="QLabel" name="label_12">
+      <widget class="QLabel" name="lblBedEnd">
        <property name="geometry">
         <rect>
-         <x>50</x>
-         <y>100</y>
-         <width>81</width>
-         <height>16</height>
+         <x>0</x>
+         <y>160</y>
+         <width>181</width>
+         <height>20</height>
         </rect>
        </property>
        <property name="text">
-        <string>End Position</string>
+        <string>Bed End Position (mm):</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
        </property>
       </widget>
-      <widget class="QLineEdit" name="txtEndPosition">
+      <widget class="QLineEdit" name="txtBedEndPosition">
        <property name="geometry">
         <rect>
-         <x>150</x>
-         <y>100</y>
-         <width>191</width>
+         <x>200</x>
+         <y>160</y>
+         <width>221</width>
          <height>22</height>
         </rect>
+       </property>
+       <property name="inputMethodHints">
+        <set>Qt::ImhDigitsOnly</set>
+       </property>
+       <property name="placeholderText">
+        <string>Front of Bed End position (in mm)</string>
        </property>
       </widget>
       <widget class="QLineEdit" name="txtSpeed">
        <property name="geometry">
         <rect>
-         <x>150</x>
-         <y>30</y>
-         <width>191</width>
+         <x>200</x>
+         <y>60</y>
+         <width>221</width>
          <height>22</height>
         </rect>
        </property>
+       <property name="inputMethodHints">
+        <set>Qt::ImhDigitsOnly</set>
+       </property>
+       <property name="text">
+        <string extracomment="Movement Speed in mm per minute"/>
+       </property>
+       <property name="placeholderText">
+        <string>Move Speed in mm per minute</string>
+       </property>
       </widget>
-      <widget class="QLineEdit" name="txtStartPosition">
+      <widget class="QLineEdit" name="txtBedStartPosition">
        <property name="geometry">
         <rect>
-         <x>150</x>
-         <y>60</y>
-         <width>191</width>
+         <x>200</x>
+         <y>130</y>
+         <width>221</width>
          <height>22</height>
         </rect>
        </property>
+       <property name="inputMethodHints">
+        <set>Qt::ImhDigitsOnly</set>
+       </property>
+       <property name="placeholderText">
+        <string>Front of Bed Start position (in mm)</string>
+       </property>
       </widget>
-      <widget class="QLabel" name="label_13">
+      <widget class="QLabel" name="lblBedStart">
        <property name="geometry">
         <rect>
-         <x>50</x>
-         <y>60</y>
-         <width>81</width>
+         <x>0</x>
+         <y>130</y>
+         <width>181</width>
          <height>20</height>
         </rect>
        </property>
        <property name="text">
-        <string>Start Position</string>
+        <string>Bed Start Position (mm):</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="lblCameraPosition">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>190</y>
+         <width>181</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Camera Position (mm):</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="txtCameraPosition">
+       <property name="geometry">
+        <rect>
+         <x>200</x>
+         <y>190</y>
+         <width>221</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="inputMethodHints">
+        <set>Qt::ImhDigitsOnly</set>
+       </property>
+       <property name="placeholderText">
+        <string>Camera height position (in mm)</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="lblMotionParam">
+       <property name="geometry">
+        <rect>
+         <x>-3</x>
+         <y>30</y>
+         <width>371</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="font">
+        <font>
+         <weight>75</weight>
+         <bold>true</bold>
+         <underline>true</underline>
+        </font>
+       </property>
+       <property name="text">
+        <string>Motion Parameters</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="lblBedParam">
+       <property name="geometry">
+        <rect>
+         <x>-10</x>
+         <y>100</y>
+         <width>381</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="font">
+        <font>
+         <weight>75</weight>
+         <bold>true</bold>
+         <underline>true</underline>
+        </font>
+       </property>
+       <property name="text">
+        <string>Bed Parameters</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBoxRigConnection">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>50</y>
+        <width>441</width>
+        <height>101</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Rig Controller Connection</string>
+      </property>
+      <widget class="QLabel" name="lblControlPort">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>30</y>
+         <width>181</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Controller Port:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QComboBox" name="cmbBoxCommPortSelect">
+       <property name="geometry">
+        <rect>
+         <x>200</x>
+         <y>30</y>
+         <width>221</width>
+         <height>24</height>
+        </rect>
+       </property>
+       <property name="placeholderText">
+        <string>Select Rig Controller Comm Port</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnRigConnect">
+       <property name="geometry">
+        <rect>
+         <x>200</x>
+         <y>60</y>
+         <width>111</width>
+         <height>32</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Connect</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnRigDisconnect">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>320</x>
+         <y>60</y>
+         <width>101</width>
+         <height>32</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Disconnect</string>
+       </property>
+       <property name="checkable">
+        <bool>false</bool>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="default">
+        <bool>false</bool>
+       </property>
+       <property name="flat">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </widget>
+     <widget class="Line" name="line">
+      <property name="geometry">
+       <rect>
+        <x>470</x>
+        <y>30</y>
+        <width>16</width>
+        <height>731</height>
+       </rect>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+     </widget>
+     <widget class="Line" name="line_2">
+      <property name="geometry">
+       <rect>
+        <x>750</x>
+        <y>30</y>
+        <width>16</width>
+        <height>731</height>
+       </rect>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+     </widget>
+     <widget class="Line" name="line_3">
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>160</y>
+        <width>431</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
+     <widget class="Line" name="line_4">
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>420</y>
+        <width>431</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
+     <widget class="Line" name="line_5">
+      <property name="geometry">
+       <rect>
+        <x>490</x>
+        <y>420</y>
+        <width>261</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_3">
+      <property name="geometry">
+       <rect>
+        <x>500</x>
+        <y>450</y>
+        <width>231</width>
+        <height>311</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Rig Status</string>
+      </property>
+      <widget class="QLabel" name="lblCurrentBedPosition">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>62</y>
+         <width>151</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Current Bed Position: </string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="lblCurrentCameraPosition">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>92</y>
+         <width>151</width>
+         <height>16</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Current Camera Position: </string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="txtCurrenBedPosition_readonly">
+       <property name="geometry">
+        <rect>
+         <x>152</x>
+         <y>60</y>
+         <width>76</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="inputMethodHints">
+        <set>Qt::ImhDigitsOnly</set>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="placeholderText">
+        <string/>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="txtCurrenCameraPosition_readonly">
+       <property name="geometry">
+        <rect>
+         <x>152</x>
+         <y>90</y>
+         <width>76</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="inputMethodHints">
+        <set>Qt::ImhDigitsOnly</set>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="placeholderText">
+        <string/>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkHomeStatus_readonly">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>92</x>
+         <y>30</y>
+         <width>80</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="layoutDirection">
+        <enum>Qt::RightToLeft</enum>
+       </property>
+       <property name="text">
+        <string>Homed:</string>
+       </property>
+       <property name="shortcut">
+        <string/>
+       </property>
+       <property name="checkable">
+        <bool>false</bool>
        </property>
       </widget>
      </widget>
