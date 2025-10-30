@@ -157,12 +157,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #self.horizontalLayout_2.replaceWidget(self.camera_feed, self.camera_feed_widget)
         #self.camera_feed.deleteLater()  # Remove the placeholder
 
-        #self.configure_buttons()
+        # self.configure_buttons()
 
         # Status tracking
         #self.status_timer = QTimer(self)
         #self.status_timer.timeout.connect(self.update_status)
         #self.status_timer.start(1000)  # Update every second
+        
+        # Setup the `setup` tab in the UI for the Rig Control and connections
+        self.setup_rig_ui()
+    def setup_rig_ui(self):
+
+        # setup the buttons for the rig control/settinga page
+        self.configure_buttons()
+
+
 
     def apply_stylesheet(self):
         # Load the stylesheet from the file
@@ -172,11 +181,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.setStyleSheet(stylesheet)
 
     def configure_buttons(self):
-        self.btnScan.clicked.connect(self.start_scan)
-        self.btnStop.clicked.connect(self.stop_scan)
+        # Rig Connect/Disconnect buttons configure
+        self.btnRigConnect.clicked.connect(self.connect_controller)
+        self.btnRigDisconnect.clicked.connect(self.disconnect_controller)
+
+        # Rig update settings button link
+        self.btnRigUpdateSettings.clicked.connect(self.)
+
+        # Rig controller buttons configure
         self.btnHomeBed.clicked.connect(self.home_bed_action)
         self.btnHomeCarriage.clicked.connect(self.home_carriage_action)
+        self.btnWhiteStrip.clicked.connect(self.move_to_white_calibration)
+        self.btnBlackStrip.clicked.connect(self.move_to_black_calibration)
+        self.btnScan.clicked.connect(self.start_scan)
+        self.btnStop.clicked.connect(self.stop_scan)
         self.btnReset.clicked.connect(self.reset_scan)
+    
+    # TODO: implement saving rig controller scanning config to globally accessable config file
+    def update_rig_settings(self):
+        pass 
+
+    # TODO: Implement connecting to selected COM port from dropdown list
+    def connect_controller(self):
+        pass
+    # TODO: Implement disconnecting from controller
+    def disconnect_controller(self):
+        pass
+
+    # TODO: Implement movement to white calibration stip
+    def move_to_white_calibration(self):
+        print(f"Moving to white calibration strip")
+        pass
+
+    # TODO: Implement movement to black calibration stip
+    def move_to_black_calibration(self):
+        print(f"Moving to black calibration strip")
+        pass
 
     def start_sensor(self):
         self._start_sensor_and_callback()
