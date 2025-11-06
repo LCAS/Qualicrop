@@ -144,7 +144,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Mock Controllers
         self.camera_controller = MockCamera()
-        self.actuator_controller = MockActuator()
+        self.actuator_controller = MockActuator() #Q: Is this meant to simulate the rig controller
 
         # Connect signals to slots
         self.camera_controller.new_data_signal.connect(self.update_camera_feed)
@@ -165,12 +165,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #self.status_timer = QTimer(self)
         #self.status_timer.timeout.connect(self.update_status)
         #self.status_timer.start(1000)  # Update every second
-        
+
+        # rig controller object that should be used when connecting and commanding the rig
+        self.rigcontroller = None 
         # Setup the `setup` tab in the UI for the Rig Control and connections
         self.setup_rig_ui()
 
     def setup_rig_ui(self):
-
         # setup the buttons for the rig control/settinga page
         self.configure_buttons()
 
@@ -247,10 +248,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # TODO: Implement connecting to selected COM port from dropdown list
     def connect_controller(self):
-        pass
+        selected_index = self.cmbBoxCommPortSelect.currentIndex()
+        port_info = self.cmbBoxCommPortSelect.itemData(selected_index)  # assuming .addItem sets device as userData
+        if not port_info:
+            print("Status: No port selected")
+            return
+
+        self.rigcontroller = RIGController(port=port_info)
+        if self.rigcontroller.connect():
+            print(f"Status: Connected to {port_info}")
+            self.btnRigConnect.setEnabled(False)
+            self.btnRigDisconnect.setEnabled(True)
+        else:
+            print("Status: Failed to connect")
+
     # TODO: Implement disconnecting from controller
     def disconnect_controller(self):
-        pass
+        if hasattr(self, 'rigcontroller') and self.rigcontroller.is_connected():
+            self.rigcontroller.disconnect()
+            self.rigcontroller = None # clear reference to object after disconnect
+            print("Status: Disconnected")
+            self.btnRigConnect.setEnabled(True)
+            self.btnRigDisconnect.setEnabled(False)
+        else:
+            print("Status: Not connected")
+
 
     # TODO: Implement movement to white calibration stip
     def move_to_white_calibration(self):
@@ -261,6 +283,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def move_to_black_calibration(self):
         print(f"Moving to black calibration strip")
         pass
+
+    # TODO: Implement homing behaviour
+        def home_bed_clicked(self):
 
     def start_sensor(self):
         self._start_sensor_and_callback()
@@ -536,10 +561,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #    self.btnStopAcquire.setEnabled(True)
         #self.status_label.setText("Status: " + str(message))
 
-    def home_bed_clicked(self):
-        scanner_controller=RIGController()
-        scanner_controller.send_command('connect')
-        scanner_controller.send_command('home')
+
 
 
 
