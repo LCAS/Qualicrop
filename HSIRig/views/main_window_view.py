@@ -590,7 +590,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         
         # check rig controller is connected
-        if self.rig_controller != None and not self.rig_controller.is_connected():
+        if self.rig_controller == None or self.rig_controller.is_connected():
             print("Status: Bed controller not connected")
             return
         
