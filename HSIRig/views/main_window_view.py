@@ -628,9 +628,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.specSensor.command('Acquisition.Stop')
         print("Status: Scan completed")
         
-        # Disconnect controller if it exists
-        if hasattr(self, 'scan_worker') and self.scan_worker.rig_controller:
-            self.scan_worker.rig_controller.disconnect()
+        # Disconnect controller if it exists (NOTE: This should be user specified now, but there might be edge cases that might want this back)
+        # if hasattr(self, 'scan_worker') and self.scan_worker.rig_controller:
+        #     self.scan_worker.rig_controller.disconnect()
             
     def on_scan_error(self, error_message):
         """Handle scan errors"""
