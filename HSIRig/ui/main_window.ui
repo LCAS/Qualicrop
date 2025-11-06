@@ -34,7 +34,7 @@
     </property>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
-      <string>Connection</string>
+      <string>Camera Connection</string>
      </attribute>
      <widget class="QGroupBox" name="groupBox">
       <property name="geometry">
@@ -637,7 +637,7 @@
     </widget>
     <widget class="QWidget" name="tab_3">
      <attribute name="title">
-      <string>Setup</string>
+      <string>Rig Control</string>
      </attribute>
      <widget class="QGroupBox" name="groupBoxRigControl">
       <property name="geometry">

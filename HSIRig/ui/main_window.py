@@ -400,7 +400,7 @@ class Ui_MainWindow(object):
         self.cmbBoxCommPortSelect_2.setPlaceholderText(_translate("MainWindow", "Select Rig Controller Comm Port"))
         self.btnRigConnect_2.setText(_translate("MainWindow", "Connect"))
         self.btnRigDisconnect_2.setText(_translate("MainWindow", "Disconnect"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "Connection"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "Camera Connection"))
         self.groupBoxRigControl.setTitle(_translate("MainWindow", "Rig Controls"))
         self.btnHomeBed.setText(_translate("MainWindow", "Home Bed"))
         self.btnHomeCarriage.setText(_translate("MainWindow", "Home Carriage"))
@@ -430,7 +430,7 @@ class Ui_MainWindow(object):
         self.lblCurrentBedPosition.setText(_translate("MainWindow", "Current Bed Position: "))
         self.lblCurrentCameraPosition.setText(_translate("MainWindow", "Current Camera Position: "))
         self.chkHomeStatus_readonly.setText(_translate("MainWindow", "Homed:"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MainWindow", "Setup"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MainWindow", "Rig Control"))
 
 
 if __name__ == "__main__":
