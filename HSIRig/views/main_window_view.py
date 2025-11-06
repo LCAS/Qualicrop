@@ -241,8 +241,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnWhiteStrip.clicked.connect(self.move_to_white_calibration)
         self.btnBlackStrip.clicked.connect(self.move_to_black_calibration)
         self.btnScan.clicked.connect(self.start_scan)
-        self.btnStop.clicked.connect(self.stop_scan)
-        self.btnReset.clicked.connect(self.reset_scan)
+        self.btnStop.clicked.connect(self.stop)
+        self.btnReset.clicked.connect(self.reset_controller)
     
     # saving rig controller scanning config to globally accessable python config file
     def update_rig_settings(self):
@@ -406,13 +406,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return
 
     # TODO: consider re-implementing logic
-    def stop_scan(self):
+    def stop(self):
         return
 
     # TODO: consider re-implementing logic
-    def reset_scan(self):
-        return
-        return
+    def reset_controller(self):
+        if not self.rigcontroller.is_connected():
+            print("Controller not connected")
+            return
+
+        print("Resetting controller...")
+        response = self.rigcontroller.reset_controller()
+        if response:
+            print("Reset response:", response)
+        else:
+            print("Reset unsuccessful")
 
     # ===================
     # === CAMERA CODE ===
