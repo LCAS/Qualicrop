@@ -541,7 +541,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #command_status,message=send_command('CONNECT')
         #if message!='OK':
         #    self.btnCameraConnect.setEnabled(True)
-        #self.status_label.setText("Status: "+ str(message))
+        #print("Status: "+ str(message))
 
     def btnCameraDisconnect_clicked(self):
         self.btnCameraDisconnect.setEnabled(False)
@@ -549,7 +549,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #command_status, message = send_command('DISCONNECT')
         #if message != 'OK':
         #    self.btnCameraConnect.setEnabled(True)
-        #self.status_label.setText("Status: " + str(message))
+        #print("Status: " + str(message))
 
     def btnApplyAdjust_clicked(self):
 
@@ -563,7 +563,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if message != 'OK':
             self.btnCameraConnect.setEnabled(True)
-        self.status_label.setText("Status: " + str(message))
+        print("Status: " + str(message))
 
     def run_scan_routine(self, rig_controller=None, cam_height=0.0, scan_speed=443.33, init_pos=80.0, scan_pos=650.0,
                          camera_capture_function=None):
@@ -697,14 +697,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_scan_status_update(self, message):
         """Update status label with scan progress"""
-        self.status_label.setText(f"Status: {message}")
+        print(f"Status: {message}")
         
     def on_scan_complete(self):
         """Handle scan completion"""
         self.btnStartAcquire.setEnabled(True)
         self.btnStopAcquire.setEnabled(False)
         self.specSensor.command('Acquisition.Stop')
-        self.status_label.setText("Status: Scan completed")
+        print("Status: Scan completed")
         
         # Disconnect controller if it exists
         if hasattr(self, 'scan_worker') and self.scan_worker.rig_controller:
@@ -714,7 +714,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """Handle scan errors"""
         self.btnStartAcquire.setEnabled(True)
         self.btnStopAcquire.setEnabled(False)
-        self.status_label.setText(f"Error: {error_message}")
+        print(f"Error: {error_message}")
         
         # Try to stop acquisition
         try:
@@ -733,7 +733,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             
         # Stop acquisition
         self.specSensor.command('Acquisition.Stop')
-        self.status_label.setText("Status: Stopped")
+        print("Status: Stopped")
 
     def closeEvent(self, event):
         # stop UI timer
