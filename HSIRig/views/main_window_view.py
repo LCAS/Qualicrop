@@ -590,10 +590,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         
         # check rig controller is connected
-        if self.rig_controller == None or self.rig_controller.is_connected():
+        if not self.rig_controller == None or not self.rig_controller.is_connected():
             print("Status: Bed controller not connected")
-            print(f"rig controller: {self.rig_controller}")
-            print(f"is connected? : {self.rig_controller.is_connected()}")
+            # print(f"rig controller: {self.rig_controller}")
+            # print(f"is connected? : {self.rig_controller.is_connected()}")
             return
         
         self.btnStartAcquire.setEnabled(False)
