@@ -2,11 +2,10 @@
 Details
 """
 # imports
-from PyQt5.QtCore import QTimer, QThread, pyqtSignal
-from PyQt5.QtWidgets import QMainWindow
+from PyQt5.QtCore import QTimer, QThread, pyqtSignal, Qt
+from PyQt5.QtWidgets import QMainWindow, QApplication
 from ui.main_window import Ui_MainWindow
 from controllers.rig_controller import RIGController
-from camera_feed_widget import CameraFeedWidget
 import os
 import time
 from controllers.command_client import send_command
@@ -247,15 +246,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
 
         self.rigcontroller = RIGController(port=port_info)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         if self.rigcontroller.connect():
             print(f"Status: Connected to {port_info}")
             self.btnRigConnect.setEnabled(False)
             self.btnRigDisconnect.setEnabled(True)
         else:
             print("Status: Failed to connect")
+        QApplication.restoreOverrideCursor()
 
     # TODO: Implement disconnecting from controller
     def disconnect_controller(self):
+        QApplication.setOverrideCursor(Qt.WaitCursor)
         if hasattr(self, 'rigcontroller') and self.rigcontroller.is_connected():
             self.rigcontroller.disconnect()
             self.rigcontroller = None # clear reference to object after disconnect
@@ -264,6 +266,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.btnRigDisconnect.setEnabled(False)
         else:
             print("Status: Not connected")
+        QApplication.restoreOverrideCursor()
 
 
     # TODO: Implement movement to white calibration stip
@@ -278,7 +281,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # TODO: Implement homing behaviour
     def home_bed_clicked(self):
-        return
+        if not self.rigcontroller.is_connected():
+            print("Status: Bed controller not connected")
+            return
+
+        print("Status: Homing")
+        try:
+            success = self.rigcontroller.home_axes()
+            if success:
+                print("Bed Status: Homed")
+                print("Status: Bed homed")
+            else:
+                print("Status: Homing failed")
+        finally:
+            pass
+
 
     def start_sensor(self):
         self._start_sensor_and_callback()

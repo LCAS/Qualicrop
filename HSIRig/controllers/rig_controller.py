@@ -222,7 +222,9 @@ class RIGController:
         return None
     
     def is_connected(self):
+        print(f"Serial Conn: {self.serial_conn}")
         if self.serial_conn:
+            print(f"Serial open?: {self.serial_conn.is_open}")
             return self.serial_conn.is_open
         return False
 
