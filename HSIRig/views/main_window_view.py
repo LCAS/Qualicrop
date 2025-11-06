@@ -709,6 +709,11 @@ class ScanWorkerThread(QThread):
             self.rig_controller.emergency_stop() # software e-stop the controller
             self.rig_controller.disconnect() # disconnect from the controller
             
+            self.main_window.btnRigConnect.setEnabled(True)
+            self.main_window.btnRigDisconnect.setEnabled(False)
+            self.main_window.btnRigConnect_2.setEnabled(True)
+            self.main_window.btnRigDisconnect_2.setEnabled(False)
+            
     def run(self):
         """This runs the scan routine on in a separate thread"""
         try:
