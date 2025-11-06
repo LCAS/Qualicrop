@@ -31,129 +31,15 @@ BAND_IDXS = np.array([15, 60, 90], dtype=int)  # R,G,B (0-based)
 ROLLING_HEIGHT = 512
 QUEUE_MAX = 4096
 
-class ScanWorkerThread(QThread):
-    # signal that enable comms back to gui main thread
-    status_update = pyqtSignal(str)
-    scan_complete = pyqtSignal()
-    error_occurred = pyqtSignal(str)
-
-    def __init__(self, 
-                 main_window, 
-                 rig_controller: RIGController, 
-                 cam_height: float=0.0, 
-                 scan_speed: float=443.33, 
-                 init_pos: float=80.0, 
-                 scan_pos: float=650.0
-                 ):
-        super().__init__()
-        self.main_window = main_window
-        self.rig_controller = rig_controller
-        self.cam_height = cam_height
-        self.scan_speed = scan_speed
-        self.init_pos = init_pos
-        self.scan_pos = scan_pos
-        self._is_running = True
-    
-    def stop(self):
-        """Stop the scan routine"""
-        self._is_running = False
-        # check if we still have a controller that is connected first
-        if self.rig_controller is not None and self.rig_controller.is_connected():
-            self.rig_controller.emergency_stop() # software e-stop the controller
-            self.rig_controller.disconnect() # disconnect from the controller
-            
-    def run(self):
-        """This runs the scan routine on in a separate thread"""
-        try:
-            rig_settings.RIG_TIMEOUT_READ_ONLY
-            rig_settings.RIG_TRAVEL_SPEED_READ_ONLY = 6000
-            
-            self.status_update.emit("Starting scan routine...")
-            
-            if not self.rig_controller.serial_conn or not self.rig_controller.serial_conn.is_open:
-                self.error_occurred.emit("ERROR: Not connected to controller!")
-                return
-                
-            # Step 1: Reset and home
-            self.status_update.emit("Resetting controller and homing axes...")
-            self.rig_controller.reset_controller()
-            time.sleep(2)
-            
-            response = self.rig_controller.home_axes()
-            print(f"Homing responce during routine:\n {response}")
-            
-            # Wait for homing with interruptible sleep
-            self.status_update.emit("Waiting for homing to complete...")
-            start_time = time.time()
-            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
-                pos = self.rig_controller.get_current_position()
-                if pos is not None and pos["Y"] == 0.0 and pos["Z"] == 0.0:
-                    break
-                self.msleep(100)  # Use QThread's msleep for better integration
-                
-            if not self._is_running:
-                return
-                
-            # Move to initial position
-            self.status_update.emit("Moving to initial position...")
-            self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)
-            self.rig_controller.move_axis("Y", self.init_pos)
-            
-            start_time = time.time()
-            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
-                pos = self.rig_controller.get_current_position()
-                if pos is not None and pos["Y"] == self.init_pos and pos["Z"] == self.cam_height:
-                    break
-                self.msleep(100)
-                
-            if not self._is_running:
-                return
-                
-            # Start acquisition
-            self.status_update.emit("Starting camera acquisition...")
-            self.msleep(2000)
-            self.main_window.specSensor.command('Acquisition.Start')
-            
-            # Start scan
-            self.status_update.emit(f"Scanning to position {self.scan_pos}...")
-            self.rig_controller.set_feed_rate(self.scan_speed)
-            self.rig_controller.move_axis("Y", self.scan_pos)
-            
-            # Wait for scan completion
-            start_time = time.time()
-            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
-                pos = self.rig_controller.get_current_position()
-                if pos is not None and pos["Y"] == self.scan_pos and pos["Z"] == self.cam_height:
-                    break
-                self.msleep(100)
-                
-            if not self._is_running:
-                return
-                
-            # Return to initial position
-            self.status_update.emit("Returning to initial position...")
-            self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)
-            self.rig_controller.move_axis("Y", self.init_pos)
-            
-            start_time = time.time()
-            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
-                pos = self.rig_controller.get_current_position()
-                if pos is not None and pos["Y"] == self.init_pos and pos["Z"] == self.cam_height:
-                    break
-                self.msleep(100)
-                
-            self.status_update.emit("Scan routine completed successfully!")
-            self.scan_complete.emit()
-            
-        except Exception as e:
-            self.error_occurred.emit(f"Error during scan: {str(e)}")
-
 # class
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
         
+        # Track what tab we are on
+        self.current_tab = 0
+
         self.add_camera_preview_ui()
 
         # rig controller object that should be used when connecting and commanding the rig
@@ -202,23 +88,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_tab_changed(self, index):
         # tab 1 (index=1) is the Setup tab for the Rig
+        self.current_tab = index # update the current tab index we are on (NOTE: there is probably a better pyQT way of getting this info)
         if index == 1:
             self.update_comm_port_list()
 
     def update_comm_port_list(self):
         """Refresh the available COM ports in the dropdown"""
         self.cmbBoxCommPortSelect.clear()  # Clear previous items
+        self.cmbBoxCommPortSelect_2.clear()  # Clear previous items
 
         # get the list of ports using the rig controller
         ports = RIGController.list_ports(self=RIGController) 
         if not ports:
             self.cmbBoxCommPortSelect.addItem("No ports found")
+            self.cmbBoxCommPortSelect_2.addItem("No ports found")
             self.cmbBoxCommPortSelect.setEnabled(False)
+            self.cmbBoxCommPortSelect_2.setEnabled(False)
         else:
             for port in ports:
                 display_text = f"{port.device} ({port.description})"
                 self.cmbBoxCommPortSelect.addItem(display_text, port.device)
+                self.cmbBoxCommPortSelect_2.addItem(display_text, port.device)
             self.cmbBoxCommPortSelect.setEnabled(True)
+            self.cmbBoxCommPortSelect_2.setEnabled(True)
 
     def apply_stylesheet(self):
         # Load the stylesheet from the file
@@ -268,8 +160,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # connecting to selected COM port from dropdown list
     def connect_controller(self):
-        selected_index = self.cmbBoxCommPortSelect.currentIndex()
-        port_info = self.cmbBoxCommPortSelect.itemData(selected_index)  # assuming .addItem sets device as userData
+        if self.current_tab == 0: # if we are on the camera connection tab
+            selected_index = self.cmbBoxCommPortSelect_2.currentIndex()
+            port_info = self.cmbBoxCommPortSelect_2.itemData(selected_index) 
+        else: # else we are on the rig control tab
+            selected_index = self.cmbBoxCommPortSelect.currentIndex()
+            port_info = self.cmbBoxCommPortSelect.itemData(selected_index)
         if not port_info:
             print("Status: No port selected")
             return
@@ -280,6 +176,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print(f"Status: Connected to {port_info}")
             self.btnRigConnect.setEnabled(False)
             self.btnRigDisconnect.setEnabled(True)
+
+            self.btnRigConnect_2.setEnabled(False)
+            self.btnRigDisconnect_2.setEnabled(True)
         else:
             print("Status: Failed to connect")
             print(f"Rig Controller: {self.rig_controller}")
@@ -294,6 +193,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print("Status: Disconnected")
             self.btnRigConnect.setEnabled(True)
             self.btnRigDisconnect.setEnabled(False)
+
+            self.btnRigConnect_2.setEnabled(True)
+            self.btnRigDisconnect_2.setEnabled(False)
         else:
             print("Status: Not connected")
         QApplication.restoreOverrideCursor()
@@ -678,13 +580,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnStopAcquire.setEnabled(True)
         
         # Create and connect the RIG controller
-        controller = RIGController()
-        controller.connect(port="COM3") #TODO: this port should be selected via a dropdown box
+        # controller = RIGController()
+        # controller.connect(port="COM3") #TODO: this port should be selected via a dropdown box
         
         # Create worker thread for the scan routine, so that we don't lock the main thread the GUI is locked to.
         self.scan_worker = ScanWorkerThread(
             main_window=self,
-            rig_controller=controller
+            # rig_controller=controller
         )
         
         # Connect signals
@@ -753,4 +655,123 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().closeEvent(event)
 
 
+class ScanWorkerThread(QThread):
+    # signal that enable comms back to gui main thread
+    status_update = pyqtSignal(str)
+    scan_complete = pyqtSignal()
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self, 
+                 main_window: MainWindow, 
+                 rig_controller: RIGController = None, # if None, then use the one in main_window 
+                 cam_height: float=0.0, 
+                 scan_speed: float=443.33, 
+                 init_pos: float=80.0, 
+                 scan_pos: float=650.0
+                 ):
+        super().__init__()
+        self.main_window = main_window
+        if rig_controller == None:
+            self.rig_controller = main_window.rig_controller
+        else:
+            self.rig_controller = rig_controller
+        self.cam_height = cam_height
+        self.scan_speed = scan_speed
+        self.init_pos = init_pos
+        self.scan_pos = scan_pos
+        self._is_running = True
+    
+    def stop(self):
+        """Stop the scan routine"""
+        self._is_running = False
+        # check if we still have a controller that is connected first
+        if self.rig_controller is not None and self.rig_controller.is_connected():
+            self.rig_controller.emergency_stop() # software e-stop the controller
+            self.rig_controller.disconnect() # disconnect from the controller
+            
+    def run(self):
+        """This runs the scan routine on in a separate thread"""
+        try:
+            # rig_settings.RIG_TIMEOUT_READ_ONLY = 95
+            # rig_settings.RIG_TRAVEL_SPEED_READ_ONLY = 6000
+            
+            self.status_update.emit("Starting scan routine...")
+            
+            if not self.rig_controller.serial_conn or not self.rig_controller.serial_conn.is_open:
+                self.error_occurred.emit("ERROR: Not connected to controller!")
+                return
+                
+            # Step 1: Reset and home
+            self.status_update.emit("Resetting controller and homing axes...")
+            self.rig_controller.reset_controller()
+            time.sleep(2)
+            
+            response = self.rig_controller.home_axes()
+            print(f"Homing responce during routine:\n {response}")
+            
+            # Wait for homing with interruptible sleep
+            self.status_update.emit("Waiting for homing to complete...")
+            start_time = time.time()
+            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
+                pos = self.rig_controller.get_current_position()
+                if pos is not None and pos["Y"] == 0.0 and pos["Z"] == 0.0:
+                    break
+                self.msleep(100)  # Use QThread's msleep for better integration
+                
+            if not self._is_running:
+                return
+                
+            # Move to initial position
+            self.status_update.emit("Moving to initial position...")
+            self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)
+            self.rig_controller.move_axis("Y", self.init_pos)
+            
+            start_time = time.time()
+            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
+                pos = self.rig_controller.get_current_position()
+                if pos is not None and pos["Y"] == self.init_pos and pos["Z"] == self.cam_height:
+                    break
+                self.msleep(100)
+                
+            if not self._is_running:
+                return
+                
+            # Start acquisition
+            self.status_update.emit("Starting camera acquisition...")
+            self.msleep(2000)
+            self.main_window.specSensor.command('Acquisition.Start')
+            
+            # Start scan
+            self.status_update.emit(f"Scanning to position {self.scan_pos}...")
+            self.rig_controller.set_feed_rate(self.scan_speed)
+            self.rig_controller.move_axis("Y", self.scan_pos)
+            
+            # Wait for scan completion
+            start_time = time.time()
+            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
+                pos = self.rig_controller.get_current_position()
+                if pos is not None and pos["Y"] == self.scan_pos and pos["Z"] == self.cam_height:
+                    break
+                self.msleep(100)
+                
+            if not self._is_running:
+                return
+                
+            # Return to initial position
+            self.status_update.emit("Returning to initial position...")
+            self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)
+            self.rig_controller.move_axis("Y", self.init_pos)
+            
+            start_time = time.time()
+            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
+                pos = self.rig_controller.get_current_position()
+                if pos is not None and pos["Y"] == self.init_pos and pos["Z"] == self.cam_height:
+                    break
+                self.msleep(100)
+                
+            self.status_update.emit("Scan routine completed successfully!")
+            self.scan_complete.emit()
+            
+        except Exception as e:
+            self.error_occurred.emit(f"Error during scan: {str(e)}")
 

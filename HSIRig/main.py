@@ -10,12 +10,15 @@ def main():
     app = QApplication(sys.argv)
 
     main_window = MainWindow()
+    # camera connection tab button event setup
     main_window.btnCameraConnect.clicked.connect(main_window.btnCameraConnect_clicked)
     main_window.btnCameraDisconnect.clicked.connect(main_window.btnCameraDisconnect_clicked)
     main_window.btnApplyAdjust.clicked.connect(main_window.btnApplyAdjust_clicked)
     main_window.btnStartAcquire.clicked.connect(main_window.btnStartAcquire_clicked)
     main_window.btnStopAcquire.clicked.connect(main_window.btnStopAcquire_clicked)
-    # main_window.btnHomeBed.clicked.connect(main_window.home_bed_clicked)
+    main_window.btnRigConnect_2.clicked.connect(main_window.connect_controller)
+    main_window.btnRigDisconnect_2.clicked.connect(main_window.disconnect_controller)
+
     main_window.apply_stylesheet()
     #main_window.camera_feed.plot_example()
     #camera_feed = MatplotlibWidget()
