@@ -39,6 +39,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         # Track what tab we are on
         self.current_tab = 0
+        # track if camera is connected (NOTE: Might be better way to get this from SDK request)
+        self.cam_connected = False
 
         self.add_camera_preview_ui()
 
@@ -340,11 +342,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         err, _ = self.specSensor.open(profiles[15], autoInit=True)
         if err != 0:
             QtWidgets.QMessageBox.critical(self, "SpecSensor", f"Open failed: {err}")
+            self.cam_connected = False
             return
 
         # Keep strong reference so it won't be GC’ed
         self._callback_ref = self._onDataCallback
         self.specSensor.sensor.registerDataCallback(self._callback_ref)
+        
+        # track success connection
+        self.cam_connected = True
 
         # start acquisition
         #self.specSensor.command('Acquisition.Start')
@@ -439,6 +445,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def btnCameraConnect_clicked(self):
         self.btnCameraConnect.setEnabled(False)
         self.btnCameraDisconnect.setEnabled(True)
+
         QApplication.setOverrideCursor(Qt.WaitCursor) # provide user feedback that we are waiting for a process to finish via cursor wait icon
         self._start_sensor_and_callback()
         QApplication.restoreOverrideCursor()
@@ -450,10 +457,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def btnCameraDisconnect_clicked(self):
         self.btnCameraDisconnect.setEnabled(False)
         self.btnCameraConnect.setEnabled(True)
-        #command_status, message = send_command('DISCONNECT')
-        #if message != 'OK':
-        #    self.btnCameraConnect.setEnabled(True)
-        #print("Status: " + str(message))
+
+        # track camera connection
+        self.cam_connected = False
 
     def btnApplyAdjust_clicked(self):
 
@@ -578,6 +584,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return True
 
     def btnStartAcquire_clicked(self):
+        # check if we are connect to camera first
+        if self.cam_connected == False:
+            print("Status: Camera not connected")
+            return
+        
         # check rig controller is connected
         if self.rig_controller != None and not self.rig_controller.is_connected():
             print("Status: Bed controller not connected")
