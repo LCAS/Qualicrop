@@ -158,7 +158,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #self.status_timer.start(1000)  # Update every second
 
         # rig controller object that should be used when connecting and commanding the rig
-        self.rigcontroller = None 
+        self.rig_controller = None 
         # Setup the `setup` tab in the UI for the Rig Control and connections
         self.setup_rig_ui()
 
@@ -207,15 +207,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnRigUpdateSettings.clicked.connect(self.update_rig_settings)
 
         # Rig controller buttons configure
-        self.btnHomeBed.clicked.connect(self.home_bed_action)
-        self.btnHomeCarriage.clicked.connect(self.home_carriage_action)
+        self.btnHomeBed.clicked.connect(self.home_bed_clicked)
+        self.btnHomeCarriage.clicked.connect(self.home_carriage_clicked)
         self.btnWhiteStrip.clicked.connect(self.move_to_white_calibration)
         self.btnBlackStrip.clicked.connect(self.move_to_black_calibration)
         self.btnScan.clicked.connect(self.start_scan)
         self.btnStop.clicked.connect(self.stop_scan)
         self.btnReset.clicked.connect(self.reset_scan)
     
-    # TODO: implement saving rig controller scanning config to globally accessable config file
+    # saving rig controller scanning config to globally accessable python config file
     def update_rig_settings(self):
         def update_txt_value(var, txtbox):
             '''update the variable if the txtbox has values and return it is so, else keep value the same'''
@@ -237,7 +237,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print(f"rig bed end: {rig_settings.RIG_BED_END}")
         print(f"rig cam height: {rig_settings.RIG_CAM_HEIGHT}")
 
-    # TODO: Implement connecting to selected COM port from dropdown list
+    # connecting to selected COM port from dropdown list
     def connect_controller(self):
         selected_index = self.cmbBoxCommPortSelect.currentIndex()
         port_info = self.cmbBoxCommPortSelect.itemData(selected_index)  # assuming .addItem sets device as userData
@@ -245,22 +245,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print("Status: No port selected")
             return
 
-        self.rigcontroller = RIGController(port=port_info)
+        self.rig_controller = RIGController(port=port_info)
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        if self.rigcontroller.connect():
+        if self.rig_controller.connect():
             print(f"Status: Connected to {port_info}")
             self.btnRigConnect.setEnabled(False)
             self.btnRigDisconnect.setEnabled(True)
         else:
             print("Status: Failed to connect")
+            print(f"Rig Controller: {self.rig_controller}")
         QApplication.restoreOverrideCursor()
 
-    # TODO: Implement disconnecting from controller
+    # disconnecting from controller
     def disconnect_controller(self):
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        if hasattr(self, 'rigcontroller') and self.rigcontroller.is_connected():
-            self.rigcontroller.disconnect()
-            self.rigcontroller = None # clear reference to object after disconnect
+        if self.rig_controller != None and self.rig_controller.is_connected():
+            self.rig_controller.disconnect()
+            self.rig_controller = None # clear reference to object after disconnect
             print("Status: Disconnected")
             self.btnRigConnect.setEnabled(True)
             self.btnRigDisconnect.setEnabled(False)
@@ -269,25 +270,79 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         QApplication.restoreOverrideCursor()
 
 
-    # TODO: Implement movement to white calibration stip
+    # Rig movement to white calibration stip
     def move_to_white_calibration(self):
         print(f"Moving to white calibration strip")
-        return
-
-    # TODO: Implement movement to black calibration stip
-    def move_to_black_calibration(self):
-        print(f"Moving to black calibration strip")
-        return
-
-    # TODO: Implement homing behaviour
-    def home_bed_clicked(self):
-        if not self.rigcontroller.is_connected():
+        if self.rig_controller != None and not self.rig_controller.is_connected():
             print("Status: Bed controller not connected")
             return
 
-        print("Status: Homing")
+        # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
+        y_pos = rig_settings.RIG_WHITE_CAL_POS_READ_ONLY # Position still needs calibrating
+        self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
+
+        # Move to Y axis position (strip location)
+        success_y = self.rig_controller.move_axis('Y', y_pos)
+        
+        # TODO: Move this homing to seperate thread process so that it is not blocking
+        # Wait for moving with interruptible sleep
+        print("Waiting for move to white calibration strip to complete...")
+        start_time = time.time()
+        while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY:
+            pos = self.rig_controller.get_current_position()
+            if pos is not None and pos["Y"] == rig_settings.RIG_WHITE_CAL_POS_READ_ONLY and pos["Z"] == rig_settings.RIG_CAM_HEIGHT:
+                break
+            try:
+                self.msleep(100)  # Use QThread's msleep for better integration
+            except:
+                time.sleep(0.1)
+            
+        if success_y:
+            print("Status: At white calibration strip")
+        else:
+            print("Status: Move failed")
+
+    # Rig movement to black calibration stip
+    def move_to_black_calibration(self):
+        print(f"Moving to black calibration strip")
+        if self.rig_controller != None and not self.rig_controller.is_connected():
+            print("Status: Bed controller not connected")
+            return
+
+        # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
+        y_pos = rig_settings.RIG_BLACK_CAL_POS_READ_ONLY # Position still needs calibrating
+        self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
+
+        # Move to Y axis position (strip location)
+        success_y = self.rig_controller.move_axis('Y', y_pos)
+        
+        # TODO: Move this homing to seperate thread process so that it is not blocking
+        # Wait for moving with interruptible sleep
+        print("Waiting for move to white calibration strip to complete...")
+        start_time = time.time()
+        while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY:
+            pos = self.rig_controller.get_current_position()
+            if pos is not None and pos["Y"] == rig_settings.RIG_BLACK_CAL_POS_READ_ONLY and pos["Z"] == rig_settings.RIG_CAM_HEIGHT:
+                break
+            try:
+                self.msleep(100)  # Use QThread's msleep for better integration
+            except:
+                time.sleep(0.1)
+            
+        if success_y:
+            print("Status: At white calibration strip")
+        else:
+            print("Status: Move failed")
+
+    # Rig homing of bed
+    def home_bed_clicked(self):
+        if self.rig_controller != None and not self.rig_controller.is_connected():
+            print("Status: controller not connected")
+            return
+
+        print("Status: Homing Y")
         try:
-            success = self.rigcontroller.home_axes()
+            success = self.rig_controller.home_axes(axes='Y')
             if success:
                 print("Bed Status: Homed")
                 print("Status: Bed homed")
@@ -295,91 +350,58 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 print("Status: Homing failed")
         finally:
             pass
+    
+    # Rig homing of carriage (camera)
+    def home_carriage_clicked(self):
+        if self.rig_controller != None and not self.rig_controller.is_connected():
+            print("Status: controller not connected")
+            return
 
-
+        print("Status: Homing Z")
+        try:
+            success = self.rig_controller.home_axes(axes='Z')
+            if success:
+                print("Bed Status: Homed")
+                print("Status: carriage homed")
+            else:
+                print("Status: Homing failed")
+        finally:
+            pass
+        
+        
     def start_sensor(self):
         self._start_sensor_and_callback()
 
     # TODO: consider re-implementing logic
     def start_scan(self):
         return
-        print("main scanning")
-        self.camera_controller.start_capture()
-        self.actuator_controller.start_scanning()
 
     # TODO: consider re-implementing logic
     def stop_scan(self):
         return
-        self.camera_controller.stop_capture()
-        self.actuator_controller.bed_running = False
-        self.actuator_controller.carriage_running = False
 
     # TODO: consider re-implementing logic
     def reset_scan(self):
         return
-        self.camera_controller.stop_capture()
-        self.camera_feed_widget.reset_image_data()
-        self.actuator_controller.bed_running = False
-        self.actuator_controller.carriage_running = False
-        self.actuator_controller.home_bed()
-        
-    # TODO: consider re-implementing logic
-    def home_bed_action(self):
-        return
-        self.actuator_controller.home_bed()
-
-    # TODO: consider re-implementing logic
-    def home_carriage_action(self):
-        return
-        self.actuator_controller.home_carriage()
 
     def update_camera_feed(self, data):
         return
-        self.camera_feed_widget.change_pixmap_signal.emit(data)
 
     # TODO: consider re-implementing logic
     def update_bed_position_feedback(self, position):
         return
-        self.bed_position_label.setText(f"Bed Position: {position}")
-        self.bed_position_carry = position
 
     # TODO: consider re-implementing logic
     def update_carriage_position_feedback(self, position):
         return
-        self.carriage_position_label.setText(f"Carriage Position: {position}")
 
     # TODO: consider re-implementing logic 
     def update_target_position_feedback(self, position):
         return
-        self.target_position_label.setText(f"Target Position: {position}")
-        self.target_carry = position
     
     # TODO: consider re-implementing logic
     def update_status(self):
         return
-        # Example of updating the status; customize as needed
-        if self.actuator_controller.bed_homed:
-            self.bed_status_label.setText("Bed Status: Homed")
-        else:
-            self.bed_status_label.setText("Bed Status: Not Homed")
-
-        if self.actuator_controller.carriage_homed:
-            self.carriage_status_label.setText("Carriage Status: Homed")
-        else:
-            self.carriage_status_label.setText("Carriage Status: Not Homed")
-
-        if self.bed_position_carry and self.target_carry:
-            percentage = (100/self.target_carry)*self.bed_position_carry
-            self.completion_percentage_label.setText(f"Completion: {round(percentage)}%")
-        else:
-            self.completion_percentage_label.setText("Completion: 0%")
-
-        if self.actuator_controller.bed_running or self.actuator_controller.carriage_running:
-            self.status_label.setText("Status: Running")
-        elif self.actuator_controller.bed_homed and self.actuator_controller.carriage_homed:
-            self.status_label.setText("Status: Homed")
-        else:
-            self.status_label.setText("Status: Idle")
 
     def btnCameraConnect_clicked(self):
         self.btnCameraConnect.setEnabled(False)
@@ -568,6 +590,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.specSensor.command('Acquisition.Stop')
         except:
             pass
+
     def btnStopAcquire_clicked(self):
         self.btnStopAcquire.setEnabled(False)
         self.btnStartAcquire.setEnabled(True)
@@ -580,15 +603,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Stop acquisition
         self.specSensor.command('Acquisition.Stop')
         self.status_label.setText("Status: Stopped")
-
-    #   Pre-Async/Thread:
-        # self.btnStopAcquire.setEnabled(False)
-        # self.btnStartAcquire.setEnabled(True)
-        # self.specSensor.command('Acquisition.Stop')
-        #command_status, message = send_command('STOP_ACQUISITION')
-        #if message != 'OK':
-        #    self.btnStopAcquire.setEnabled(True)
-        #self.status_label.setText("Status: " + str(message))
 
 
 
