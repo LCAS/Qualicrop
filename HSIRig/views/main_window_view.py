@@ -5,8 +5,6 @@ Details
 from PyQt5.QtCore import QTimer, QThread, pyqtSignal
 from PyQt5.QtWidgets import QMainWindow
 from ui.main_window import Ui_MainWindow
-from controllers.mock_camera import MockCamera
-from controllers.mock_actuator import MockActuator
 from controllers.rig_controller import RIGController
 from camera_feed_widget import CameraFeedWidget
 import os
@@ -142,24 +140,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Apply stylesheets for a better visual appearance
         #self.apply_stylesheet()
 
-        # Mock Controllers
-        self.camera_controller = MockCamera()
-        self.actuator_controller = MockActuator() #Q: Is this meant to simulate the rig controller
-
         # Connect signals to slots
-        self.camera_controller.new_data_signal.connect(self.update_camera_feed)
-        self.actuator_controller.bed_position_signal.connect(self.update_bed_position_feedback)
-        self.actuator_controller.carriage_position_signal.connect(self.update_carriage_position_feedback)
-        self.actuator_controller.target_position_signal.connect(self.update_target_position_feedback)
-        self.bed_position_carry = None
-        self.target_carry = None
+        # self.camera_controller.new_data_signal.connect(self.update_camera_feed)
+        # self.actuator_controller.bed_position_signal.connect(self.update_bed_position_feedback)
+        # self.actuator_controller.carriage_position_signal.connect(self.update_carriage_position_feedback)
+        # self.actuator_controller.target_position_signal.connect(self.update_target_position_feedback)
+        # self.bed_position_carry = None
+        # self.target_carry = None
 
         # Replace the placeholder QLabel with the CameraFeedWidget
         #self.camera_feed_widget = CameraFeedWidget(self)
         #self.horizontalLayout_2.replaceWidget(self.camera_feed, self.camera_feed_widget)
         #self.camera_feed.deleteLater()  # Remove the placeholder
-
-        # self.configure_buttons()
 
         # Status tracking
         #self.status_timer = QTimer(self)
@@ -277,57 +269,77 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # TODO: Implement movement to white calibration stip
     def move_to_white_calibration(self):
         print(f"Moving to white calibration strip")
-        pass
+        return
 
     # TODO: Implement movement to black calibration stip
     def move_to_black_calibration(self):
         print(f"Moving to black calibration strip")
-        pass
+        return
 
     # TODO: Implement homing behaviour
-        def home_bed_clicked(self):
+    def home_bed_clicked(self):
+        return
 
     def start_sensor(self):
         self._start_sensor_and_callback()
 
+    # TODO: consider re-implementing logic
     def start_scan(self):
+        return
         print("main scanning")
         self.camera_controller.start_capture()
         self.actuator_controller.start_scanning()
 
+    # TODO: consider re-implementing logic
     def stop_scan(self):
+        return
         self.camera_controller.stop_capture()
         self.actuator_controller.bed_running = False
         self.actuator_controller.carriage_running = False
 
+    # TODO: consider re-implementing logic
     def reset_scan(self):
+        return
         self.camera_controller.stop_capture()
         self.camera_feed_widget.reset_image_data()
         self.actuator_controller.bed_running = False
         self.actuator_controller.carriage_running = False
         self.actuator_controller.home_bed()
         
+    # TODO: consider re-implementing logic
     def home_bed_action(self):
+        return
         self.actuator_controller.home_bed()
 
+    # TODO: consider re-implementing logic
     def home_carriage_action(self):
+        return
         self.actuator_controller.home_carriage()
 
     def update_camera_feed(self, data):
+        return
         self.camera_feed_widget.change_pixmap_signal.emit(data)
 
+    # TODO: consider re-implementing logic
     def update_bed_position_feedback(self, position):
+        return
         self.bed_position_label.setText(f"Bed Position: {position}")
         self.bed_position_carry = position
 
+    # TODO: consider re-implementing logic
     def update_carriage_position_feedback(self, position):
+        return
         self.carriage_position_label.setText(f"Carriage Position: {position}")
 
+    # TODO: consider re-implementing logic 
     def update_target_position_feedback(self, position):
+        return
         self.target_position_label.setText(f"Target Position: {position}")
         self.target_carry = position
     
+    # TODO: consider re-implementing logic
     def update_status(self):
+        return
         # Example of updating the status; customize as needed
         if self.actuator_controller.bed_homed:
             self.bed_status_label.setText("Bed Status: Homed")
