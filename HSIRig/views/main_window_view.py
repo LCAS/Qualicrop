@@ -2,6 +2,7 @@
 Details
 """
 # imports
+from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtCore import QTimer, QThread, pyqtSignal, Qt
 from PyQt5.QtWidgets import QMainWindow, QApplication
 from ui.main_window import Ui_MainWindow
@@ -12,6 +13,23 @@ from controllers.command_client import send_command
 from controllers.rig_controller import RIGController
 import rig_settings
 
+import ctypes as C
+import numpy as np
+from queue import Queue, Empty
+
+# Matplotlib canvas for Qt camera preview
+try:
+    from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+except ImportError:
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
+from SpecSensor import SpecSensor
+
+WIDTH = 1024
+BAND_IDXS = np.array([15, 60, 90], dtype=int)  # R,G,B (0-based)
+ROLLING_HEIGHT = 512
+QUEUE_MAX = 4096
 
 class ScanWorkerThread(QThread):
     # signal that enable comms back to gui main thread
@@ -135,32 +153,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-
-        # Apply stylesheets for a better visual appearance
-        #self.apply_stylesheet()
-
-        # Connect signals to slots
-        # self.camera_controller.new_data_signal.connect(self.update_camera_feed)
-        # self.actuator_controller.bed_position_signal.connect(self.update_bed_position_feedback)
-        # self.actuator_controller.carriage_position_signal.connect(self.update_carriage_position_feedback)
-        # self.actuator_controller.target_position_signal.connect(self.update_target_position_feedback)
-        # self.bed_position_carry = None
-        # self.target_carry = None
-
-        # Replace the placeholder QLabel with the CameraFeedWidget
-        #self.camera_feed_widget = CameraFeedWidget(self)
-        #self.horizontalLayout_2.replaceWidget(self.camera_feed, self.camera_feed_widget)
-        #self.camera_feed.deleteLater()  # Remove the placeholder
-
-        # Status tracking
-        #self.status_timer = QTimer(self)
-        #self.status_timer.timeout.connect(self.update_status)
-        #self.status_timer.start(1000)  # Update every second
+        
+        self.add_camera_preview_ui()
 
         # rig controller object that should be used when connecting and commanding the rig
         self.rig_controller = None 
         # Setup the `setup` tab in the UI for the Rig Control and connections
         self.setup_rig_ui()
+
+    def add_camera_preview_ui(self):
+        # --- replace QLabel with Matplotlib canvas ---
+        self.rgb_img = np.zeros((ROLLING_HEIGHT, WIDTH, 3), dtype=np.uint8)
+
+        self.canvas = FigureCanvas(Figure(figsize=(6, 3)))
+        self.ax = self.canvas.figure.subplots()
+        self.ax.axis("off")
+        self.im = self.ax.imshow(self.rgb_img, vmin=0, vmax=255,
+                                 aspect="auto", interpolation="nearest")
+
+        # swap widgets in the same layout spot
+        self.horizontalLayout_2.replaceWidget(self.camera_feed, self.canvas)
+        self.camera_feed.deleteLater()
+
+        # queue between SDK callback (producer) and UI (consumer)
+        self.line_queue = Queue(maxsize=QUEUE_MAX)
+
+        # stats
+        self._lines_rcvd = 0
+        self._bands_in_line = None
+
+        # start camera and register callback
+        #self._start_sensor_and_callback()
+
+        # UI timer to update plot (main thread only)
+        self.timer = QtCore.QTimer(self)
+        self.timer.timeout.connect(self._drain_and_update_plot)
+        self.timer.start(30)  # ~33 FPS UI
+        # --- end of eplace QLabel with Matplotlib canvas ---
 
     def setup_rig_ui(self):
         # setup the buttons for the rig control/settinga page
@@ -383,25 +412,119 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # TODO: consider re-implementing logic
     def reset_scan(self):
         return
-
-    def update_camera_feed(self, data):
         return
 
-    # TODO: consider re-implementing logic
-    def update_bed_position_feedback(self, position):
-        return
+    # ===================
+    # === CAMERA CODE ===
+    # ===================
 
-    # TODO: consider re-implementing logic
-    def update_carriage_position_feedback(self, position):
-        return
+    def _start_sensor_and_callback(self):
+        self.specSensor = SpecSensor(sdkFolder='./libs/')
+        profiles = self.specSensor.getProfiles()
+        if not profiles:
+            QtWidgets.QMessageBox.critical(self, "SpecSensor", "No devices found.")
+            return
 
-    # TODO: consider re-implementing logic 
-    def update_target_position_feedback(self, position):
-        return
-    
-    # TODO: consider re-implementing logic
-    def update_status(self):
-        return
+        # open first profile (or pick by name)
+        # SELECT CAMERA VIA THE INDEX (FX10e == 15)
+        err, _ = self.specSensor.open(profiles[15], autoInit=True)
+        if err != 0:
+            QtWidgets.QMessageBox.critical(self, "SpecSensor", f"Open failed: {err}")
+            return
+
+        # Keep strong reference so it won't be GC’ed
+        self._callback_ref = self._onDataCallback
+        self.specSensor.sensor.registerDataCallback(self._callback_ref)
+
+        # start acquisition
+        #self.specSensor.command('Acquisition.Start')
+
+    def _reshape_line_from_bytes(self, pBuffer, nbytes):
+        if nbytes % 2:
+            return None, None
+        nsamples = nbytes // 2
+        u16_ptr = C.cast(pBuffer, C.POINTER(C.c_uint16))
+        raw = np.ctypeslib.as_array(u16_ptr, shape=(nsamples,))
+
+        if nsamples % WIDTH != 0:
+            return None, None
+        bands = nsamples // WIDTH
+
+        # BIL for a single line -> (bands, width).T == (pixels, bands)
+        line16 = raw.reshape(bands, WIDTH).T
+        return line16, bands
+
+    def _u16_to_u8(self, x16, eps=1e-6):
+        # robust 1–99% percentile stretch per channel
+        lo = np.percentile(x16, 1, axis=0)
+        hi = np.percentile(x16, 99, axis=0)
+        y = (x16 - lo) * (255.0 / (hi - lo + eps))
+        return np.clip(y, 0, 255).astype(np.uint8)
+
+    # signature matches your SDK: (void*, int64, int64, void*)
+    def _onDataCallback(self, pBuffer: C.c_void_p,
+                        nFrameSize: C.c_int64,
+                        nFrameNumber: C.c_int64,
+                        pContext: C.c_void_p) -> None:
+        try:
+            nbytes = int(nFrameSize)
+            if nbytes <= 0:
+                return
+            line16, bands = self._reshape_line_from_bytes(pBuffer, nbytes)
+            if line16 is None:
+                return
+            self._bands_in_line = bands
+            if BAND_IDXS.max() >= bands:
+                return
+
+            rgb16 = line16[:, BAND_IDXS]  # (1024, 3) uint16
+            # print (rgb16)
+            # enqueue a COPY so we're safe after the SDK returns
+            try:
+                self.line_queue.put_nowait(rgb16.copy())
+            except Exception:
+                try:
+                    self.line_queue.get_nowait()
+                except Empty:
+                    pass
+                try:
+                    self.line_queue.put_nowait(rgb16.copy())
+                except Exception:
+                    pass
+
+            self._lines_rcvd += 1
+        except Exception:
+            # never raise out of native callback thread
+            return
+
+    def _drain_and_update_plot(self):
+        drained = 0
+        # write pointer for rolling buffer
+        if not hasattr(self, "_write_row"):
+            self._write_row = 0
+
+        while True:
+            try:
+                rgb16 = self.line_queue.get_nowait()
+            except Empty:
+                break
+            rgb8 = self._u16_to_u8(rgb16)  # (1024, 3) uint8
+            self.rgb_img[self._write_row, :, :] = rgb8
+            self._write_row = (self._write_row + 1) % ROLLING_HEIGHT
+            drained += 1
+
+        if drained:
+            # rotate so newest line is at the bottom (scroll effect)
+            wr = self._write_row
+            view = np.vstack((self.rgb_img[wr:], self.rgb_img[:wr]))
+            self.im.set_data(view)
+            # optional: show stats in window title or a label
+            self.ax.set_title(
+                f"HSI RGB bands {BAND_IDXS.tolist()} | "
+                f"lines: {self._lines_rcvd}  bands_in_line: {self._bands_in_line}  "
+                f"q: {self.line_queue.qsize()}"
+            )
+            self.canvas.draw_idle()
 
     def btnCameraConnect_clicked(self):
         self.btnCameraConnect.setEnabled(False)
@@ -604,7 +727,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.specSensor.command('Acquisition.Stop')
         self.status_label.setText("Status: Stopped")
 
-
+    def closeEvent(self, event):
+        # stop UI timer
+        try:
+            self.timer.stop()
+        except Exception:
+            pass
+        # stop acquisition & close device
+        try:
+            self.specSensor.command('Acquisition.Stop')
+        except Exception:
+            pass
+        try:
+            self.specSensor.close()
+        except Exception:
+            pass
+        super().closeEvent(event)
 
 
 
