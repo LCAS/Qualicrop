@@ -43,7 +43,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.add_camera_preview_ui()
 
         # rig controller object that should be used when connecting and commanding the rig
-        self.rig_controller = None 
+        self.rig_controller: RIGController = None 
         # Setup the `setup` tab in the UI for the Rig Control and connections
         self.setup_rig_ui()
 
@@ -439,7 +439,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def btnCameraConnect_clicked(self):
         self.btnCameraConnect.setEnabled(False)
         self.btnCameraDisconnect.setEnabled(True)
+        QApplication.setOverrideCursor(Qt.WaitCursor) # provide user feedback that we are waiting for a process to finish via cursor wait icon
         self._start_sensor_and_callback()
+        QApplication.restoreOverrideCursor()
         #command_status,message=send_command('CONNECT')
         #if message!='OK':
         #    self.btnCameraConnect.setEnabled(True)
@@ -576,6 +578,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return True
 
     def btnStartAcquire_clicked(self):
+        # check rig controller is connected
+        if self.rig_controller != None and not self.rig_controller.is_connected():
+            print("Status: Bed controller not connected")
+            return
+        
         self.btnStartAcquire.setEnabled(False)
         self.btnStopAcquire.setEnabled(True)
         
