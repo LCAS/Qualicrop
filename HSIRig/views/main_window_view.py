@@ -679,7 +679,7 @@ class ScanWorkerThread(QThread):
             # Step 1: Reset and home
             self.status_update.emit("Resetting controller and homing axes...")
             self.rig_controller.reset_controller()
-            time.sleep(2)
+            time.sleep(1)
             
             response = self.rig_controller.home_axes()
             print(f"Homing responce during routine:\n {response}")
