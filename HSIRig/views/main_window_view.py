@@ -772,6 +772,8 @@ class ScanWorkerThread(QThread):
             self.status_update.emit("Moving to initial position...")
             self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)
             self.rig_controller.move_axis("Y", self.init_pos)
+            self.rig_controller.move_axis('Z', self.cam_height)
+
             
             start_time = time.time()
             while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
@@ -808,6 +810,7 @@ class ScanWorkerThread(QThread):
             self.status_update.emit("Returning to initial position...")
             self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)
             self.rig_controller.move_axis("Y", self.init_pos)
+            self.rig_controller.move_axis('Z', self.cam_height)
             
             start_time = time.time()
             while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
