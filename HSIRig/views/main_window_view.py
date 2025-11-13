@@ -482,7 +482,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             cam_height=rig_settings.RIG_CAM_HEIGHT,
             init_pos=rig_settings.RIG_BED_START,
             end_scan_pos=rig_settings.RIG_BED_END,
-            scan_speed=rig_settings.RIG_SPEED
+            scan_speed=rig_settings.RIG_SPEED,
         )
         
         # Connect signals
@@ -588,7 +588,7 @@ class ScanWorkerThread(QThread):
                  cam_height: float=0.0, 
                  scan_speed: float=443.33, 
                  init_pos: float=80.0, 
-                 scan_pos: float=650.0
+                 end_scan_pos: float=650.0
                  ):
         super().__init__()
         self.main_window = main_window
@@ -599,7 +599,7 @@ class ScanWorkerThread(QThread):
         self.cam_height = cam_height
         self.scan_speed = scan_speed
         self.init_pos = init_pos
-        self.scan_pos = scan_pos
+        self.scan_pos = end_scan_pos
         self._is_running = True
 
         # Pause control of the routine for getting user input when calibration is enabled
