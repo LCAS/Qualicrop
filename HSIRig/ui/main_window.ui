@@ -30,7 +30,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>1</number>
     </property>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
@@ -163,7 +163,7 @@
         <enum>Qt::RightToLeft</enum>
        </property>
        <property name="text">
-        <string>(TODO) Calibration:    </string>
+        <string>Calibration:    </string>
        </property>
       </widget>
      </widget>
@@ -728,6 +728,9 @@
        </property>
       </widget>
       <widget class="QPushButton" name="btnScan">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="geometry">
         <rect>
          <x>10</x>
@@ -743,10 +746,13 @@
         </size>
        </property>
        <property name="text">
-        <string>TODO: Begin Scan</string>
+        <string>NOT IMP. SEE OTHER TAB: Begin Scan</string>
        </property>
       </widget>
       <widget class="QPushButton" name="btnStop">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="geometry">
         <rect>
          <x>10</x>

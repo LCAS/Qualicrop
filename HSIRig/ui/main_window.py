@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file './main_window.ui'
+# Form implementation generated from reading ui file '/home/robert/Documents/qualicrop/Qualicrop/HSIRig/ui/main_window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.9
 #
@@ -199,10 +199,12 @@ class Ui_MainWindow(object):
         self.btnBlackStrip.setMinimumSize(QtCore.QSize(0, 32))
         self.btnBlackStrip.setObjectName("btnBlackStrip")
         self.btnScan = QtWidgets.QPushButton(self.groupBoxRigControl)
+        self.btnScan.setEnabled(False)
         self.btnScan.setGeometry(QtCore.QRect(10, 224, 251, 32))
         self.btnScan.setMinimumSize(QtCore.QSize(0, 32))
         self.btnScan.setObjectName("btnScan")
         self.btnStop = QtWidgets.QPushButton(self.groupBoxRigControl)
+        self.btnStop.setEnabled(False)
         self.btnStop.setGeometry(QtCore.QRect(10, 272, 251, 32))
         self.btnStop.setMinimumSize(QtCore.QSize(0, 32))
         self.btnStop.setObjectName("btnStop")
@@ -367,7 +369,7 @@ class Ui_MainWindow(object):
         self.btnCameraDisconnect.setText(_translate("MainWindow", "Disconnect"))
         self.label_2.setText(_translate("MainWindow", "Output Folder:"))
         self.btnOutputFolder.setText(_translate("MainWindow", "..."))
-        self.chkCalibration.setText(_translate("MainWindow", "(TODO) Calibration:    "))
+        self.chkCalibration.setText(_translate("MainWindow", "Calibration:    "))
         self.groupBox_2.setTitle(_translate("MainWindow", "Adjust"))
         self.label_3.setText(_translate("MainWindow", "Shutter:"))
         self.label_4.setText(_translate("MainWindow", "Frame Rate:"))
@@ -406,7 +408,7 @@ class Ui_MainWindow(object):
         self.btnHomeCarriage.setText(_translate("MainWindow", "Home Carriage"))
         self.btnWhiteStrip.setText(_translate("MainWindow", "Move to White Calibration Strip"))
         self.btnBlackStrip.setText(_translate("MainWindow", "Move to Black Calibration Strip"))
-        self.btnScan.setText(_translate("MainWindow", "TODO: Begin Scan"))
+        self.btnScan.setText(_translate("MainWindow", "NOT IMP. SEE OTHER TAB: Begin Scan"))
         self.btnStop.setText(_translate("MainWindow", "TODO: STOP"))
         self.btnReset.setText(_translate("MainWindow", "Reset Controller"))
         self.groupBoxScanParam.setTitle(_translate("MainWindow", "Scan Parameter"))
@@ -431,13 +433,3 @@ class Ui_MainWindow(object):
         self.lblCurrentCameraPosition.setText(_translate("MainWindow", "Current Camera Position: "))
         self.chkHomeStatus_readonly.setText(_translate("MainWindow", "Homed:"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MainWindow", "Rig Control"))
-
-
-if __name__ == "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
-    sys.exit(app.exec_())
