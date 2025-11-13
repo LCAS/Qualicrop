@@ -251,7 +251,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         # TODO: Move this homing to seperate thread process so that it is not blocking
         # Wait for moving with interruptible sleep
-        print("Waiting for move to white calibration strip to complete...")
+        print("Waiting for move to black calibration strip to complete...")
         start_time = time.time()
         while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY:
             pos = self.rig_controller.get_current_position()
@@ -263,7 +263,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 time.sleep(0.1)
             
         if success_y:
-            print("Status: At white calibration strip")
+            print("Status: At black calibration strip")
         else:
             print("Status: Move failed")
 
@@ -719,6 +719,41 @@ class ScanWorkerThread(QThread):
                 self.status_update.emit("At white calibration position. Waiting for user confirmation...")
                 
                 if not self.wait_for_confirmation("Calibration paused at white strip. Do you want to continue?"):
+                    self.status_update.emit("Scan cancelled by user.")
+                    return
+                
+                self.status_update.emit("Continuing scan routine...")
+
+                print(f"Moving to black calibration strip")
+                if self.rig_controller != None and not self.rig_controller.is_connected():
+                    print("Status: Bed controller not connected")
+                    return
+
+                # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
+                y_pos = rig_settings.RIG_BLACK_CAL_POS_READ_ONLY # Position still needs calibrating
+                self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
+
+                # Move to Y axis position (strip location)
+                success_y = self.rig_controller.move_axis('Y', y_pos)
+                
+                # TODO: Move this homing to seperate thread process so that it is not blocking
+                # Wait for moving with interruptible sleep
+                print("Waiting for move to white calibration strip to complete...")
+                start_time = time.time()
+                while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY:
+                    pos = self.rig_controller.get_current_position()
+                    if pos is not None and pos["Y"] == rig_settings.RIG_BLACK_CAL_POS_READ_ONLY and pos["Z"] == rig_settings.RIG_CAM_HEIGHT:
+                        break
+                    self.msleep(100)  # Use QThread's msleep for better integration
+                    
+                if success_y:
+                    print("Status: At white calibration strip")
+                else:
+                    print("Status: Move failed")
+                # Pause: dialog box here to get user confirmation to continue routine
+                self.status_update.emit("At black calibration position. Waiting for user confirmation...")
+                
+                if not self.wait_for_confirmation("Calibration paused at black strip. Do you want to continue?"):
                     self.status_update.emit("Scan cancelled by user.")
                     return
                 
