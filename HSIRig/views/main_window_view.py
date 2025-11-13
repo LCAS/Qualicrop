@@ -301,19 +301,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         finally:
             pass
         
-        
-    def start_sensor(self):
-        self._start_sensor_and_callback()
-
-    # TODO: consider re-implementing logic
-    def start_scan(self):
-        return
-
-    # TODO: consider re-implementing logic
-    def stop(self):
-        return
-
-    # TODO: consider re-implementing logic
+    # rig controller reset logic
     def reset_controller(self):
         if not self.rigcontroller.is_connected():
             print("Controller not connected")
@@ -449,10 +437,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         QApplication.setOverrideCursor(Qt.WaitCursor) # provide user feedback that we are waiting for a process to finish via cursor wait icon
         self._start_sensor_and_callback()
         QApplication.restoreOverrideCursor()
-        #command_status,message=send_command('CONNECT')
-        #if message!='OK':
-        #    self.btnCameraConnect.setEnabled(True)
-        #print("Status: "+ str(message))
 
     def btnCameraDisconnect_clicked(self):
         self.btnCameraDisconnect.setEnabled(False)
@@ -474,114 +458,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if message != 'OK':
             self.btnCameraConnect.setEnabled(True)
         print("Status: " + str(message))
-
-    def run_scan_routine(self, rig_controller=None, cam_height=0.0, scan_speed=443.33, init_pos=80.0, scan_pos=650.0,
-                         camera_capture_function=None):
-        """
-        Run a test routine for scanning:
-        1. Reset controller and home axes
-        2. Move Y axis to position 80 at rate 4000 mm/min
-        3. Wait until position is reached
-        4. Set rate to 443 mm/min and move to position 650
-        5. Move back to position 80 at rate 4000 mm/min
-
-        Parameters:
-        - custom_function: A function to run at a specific point during the scan routine (e.g., camera capture).
-        """
-        if rig_controller is None:
-            return False
-
-        TIMEOUT = 95
-        TRAVEL_SPEED = 6000
-
-        print("\n=== Starting Test Routine ===\n")
-
-        if not rig_controller.serial_conn or not rig_controller.serial_conn.is_open:
-            print("ERROR: Not connected to controller!")
-            return False
-
-        # Step 1: Reset and home
-        print("Step 1: Resetting controller and homing axes...")
-        rig_controller.reset_controller()
-        time.sleep(2)
-
-        # Home without user confirmation
-        print("Homing Y and Z axes...")
-        response = rig_controller.home_axes()
-        print(f"Homing response: {response}")
-
-        # Wait for homing to complete by checking status
-        print("Waiting for homing to complete...")
-        start_time = time.time()
-        while time.time() - start_time < TIMEOUT:  # HOMING takes a max time of 90 secs (95s is safe)
-            pos = rig_controller.get_current_position()
-            if pos is not None and pos["Y"] == 0.0 and pos["Z"] == 0.0:
-                print(f"Homing finished early @ \n{pos}")
-                break  # Condition met
-            time.sleep(0.1)  # Check every 100ms
-        print("Homing finished")
-
-        # Step 3: Move and wait till in camera scan init position
-        print("Moving into initial pos")
-        rig_controller.set_feed_rate(TRAVEL_SPEED)
-        rig_controller.move_axis("Y", init_pos)
-
-        # Wait until we are at the initial position
-        start_time = time.time()
-        while time.time() - start_time < TIMEOUT:
-            pos = rig_controller.get_current_position()
-            if pos is not None and pos["Y"] == init_pos and pos["Z"] == cam_height:
-                print("At initial position early")
-                break  # Condition met
-            time.sleep(0.1)  # Check every 100ms
-        print("At initial position")
-
-        # Step 4: Set rate to 443 and move to 650
-        print("\nStep 4: Moving to Y position 650mm at 443mm/min...")
-        rig_controller.set_feed_rate(scan_speed)
-
-        # If a custom function is provided, call it here (e.g., start camera capture)
-        # if camera_capture_function:
-        #     print(f"!!! Running Camera Capture Function: {camera_capture_function.__name__} !!!")
-            # camera_capture_function()  # Call the custom function
-
-        # START Camera Acquire actions
-        time.sleep(2)
-        self.specSensor.command('Acquisition.Start'),
-        self.btnStopAcquire.setEnabled(True)
-        # we wait a fit for it to start up
-        start_time = time.time()
-        while time.time() - start_time < 2:
-            time.sleep(0.1)  # Check every 100ms
-
-        # Move to the scan position
-        rig_controller.move_axis("Y", scan_pos)
-        # Wait until we are at the scan position
-        start_time = time.time()
-        while time.time() - start_time < TIMEOUT:
-            pos = rig_controller.get_current_position()
-            if pos is not None and pos["Y"] == scan_pos and pos["Z"] == cam_height:
-                print("Finished Full bed scan early")
-                break  # Condition met
-            time.sleep(0.1)  # Check every 100ms
-        print("Full bed scan finished")
-
-        # Step 5: Move back to Y position 80mm at 4000mm/min
-        print("\nStep 5: Moving back to Y position 80mm at 4000mm/min...")
-        rig_controller.set_feed_rate(TRAVEL_SPEED)
-        rig_controller.move_axis("Y", init_pos)
-
-        # Wait until we are back at the initial position
-        start_time = time.time()
-        while time.time() - start_time < TIMEOUT:
-            pos = rig_controller.get_current_position()
-            if pos is not None and pos["Y"] == init_pos and pos["Z"] == cam_height:
-                print("Back to initial position early")
-                break  # Condition met
-            time.sleep(0.1)  # Check every 100ms
-
-        print("\n=== Test Routine Completed Successfully ===\n")
-        return True
 
     def btnStartAcquire_clicked(self):
         # check if we are connect to camera first
