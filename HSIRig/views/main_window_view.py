@@ -3,7 +3,7 @@ Details
 """
 # imports
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import QTimer, QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QTimer, QThread, pyqtSignal, Qt, QMutex, QWaitCondition, QMutexLocker, pyqtSlot, QMessageBox
 from PyQt5.QtWidgets import QMainWindow, QApplication
 from ui.main_window import Ui_MainWindow
 from controllers.rig_controller import RIGController
@@ -475,14 +475,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnStartAcquire.setEnabled(False)
         self.btnStopAcquire.setEnabled(True)
         
-        # Create and connect the RIG controller
-        # controller = RIGController()
-        # controller.connect(port="COM3") #TODO: this port should be selected via a dropdown box
-        
-        # Create worker thread for the scan routine, so that we don't lock the main thread the GUI is locked to.
+        # Create worker thread
         self.scan_worker = ScanWorkerThread(
             main_window=self,
-            # rig_controller=controller
         )
         
         # Connect signals
@@ -490,8 +485,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.scan_worker.scan_complete.connect(self.on_scan_complete)
         self.scan_worker.error_occurred.connect(self.on_scan_error)
         
+        # NEW: Connect confirmation request signal
+        self.scan_worker.request_confirmation.connect(self.show_confirmation_dialog)
+        
         # Start the thread
         self.scan_worker.start()
+    @pyqtSlot(str)
+    def show_confirmation_dialog(self, message):
+        """
+        Show a modal confirmation dialog in the main thread.
+        This is called via signal from the worker thread.
+        """
+        reply = QMessageBox.question(
+            self,
+            'Confirmation Required',
+            message,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes
+        )
+        
+        if reply == QMessageBox.Yes:
+            # User clicked Yes - resume the worker
+            self.scan_worker.resume()
+        else:
+            # User clicked No - cancel the worker
+            self.scan_worker.cancel()
 
     def on_scan_status_update(self, message):
         """Update status label with scan progress"""
@@ -556,6 +574,8 @@ class ScanWorkerThread(QThread):
     status_update = pyqtSignal(str)
     scan_complete = pyqtSignal()
     error_occurred = pyqtSignal(str)
+    # Signal to request user confirmation
+    request_confirmation = pyqtSignal(str)  # str is the message to display
 
     def __init__(self, 
                  main_window: MainWindow, 
@@ -576,10 +596,23 @@ class ScanWorkerThread(QThread):
         self.init_pos = init_pos
         self.scan_pos = scan_pos
         self._is_running = True
+
+        # Pause control of the routine for getting user input when calibration is enabled
+        self._paused = False
+        self._pause_mutex = QMutex()
+        self._pause_condition = QWaitCondition()
+        self._user_cancelled = False
+
     
     def stop(self):
         """Stop the scan routine"""
         self._is_running = False
+
+        # if needed, wake the thread in case it’s waiting
+        with QMutexLocker(self._pause_mutex):
+            self._paused = False
+            self._pause_condition.wakeAll()
+
         # check if we still have a controller that is connected first
         if self.rig_controller is not None and self.rig_controller.is_connected():
             self.rig_controller.emergency_stop() # software e-stop the controller
@@ -589,6 +622,42 @@ class ScanWorkerThread(QThread):
             self.main_window.btnRigDisconnect.setEnabled(False)
             self.main_window.btnRigConnect_2.setEnabled(True)
             self.main_window.btnRigDisconnect_2.setEnabled(False)
+
+    @pyqtSlot()
+    def resume(self):
+        """Resume after user confirmation (Yes clicked)"""
+        with QMutexLocker(self._pause_mutex):
+            self._paused = False
+            self._user_cancelled = False
+            self._pause_condition.wakeAll()
+    
+    @pyqtSlot()
+    def cancel(self):
+        """Cancel after user rejection (No clicked)"""
+        with QMutexLocker(self._pause_mutex):
+            self._paused = False
+            self._user_cancelled = True
+            self._is_running = False
+            self._pause_condition.wakeAll()
+
+    def wait_for_confirmation(self, message):
+            """
+            Pause the thread and wait for user confirmation via GUI.
+            Returns True if user confirmed, False if cancelled.
+            """
+            with QMutexLocker(self._pause_mutex):
+                self._paused = True
+                self._user_cancelled = False
+                
+            # Emit signal to main thread to show dialog
+            self.request_confirmation.emit(message)
+            
+            # Wait for user response
+            with QMutexLocker(self._pause_mutex):
+                while self._paused and self._is_running:
+                    self._pause_condition.wait(self._pause_mutex)
+            
+            return not self._user_cancelled and self._is_running
             
     def run(self):
         """This runs the scan routine on in a separate thread"""
@@ -645,6 +714,16 @@ class ScanWorkerThread(QThread):
                     print("Status: At white calibration strip")
                 else:
                     print("Status: Move failed")
+
+                # TODO Pause: dialog box here to get user confirmation to continue routine
+                self.status_update.emit("At white calibration position. Waiting for user confirmation...")
+                
+                if not self.wait_for_confirmation("Calibration is paused. Do you want to continue?"):
+                    self.status_update.emit("Scan cancelled by user.")
+                    return
+                
+                self.status_update.emit("Continuing scan routine...")
+                
                 if not self._is_running:
                     return
                 
