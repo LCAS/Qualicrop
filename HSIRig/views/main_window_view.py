@@ -134,8 +134,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnHomeCarriage.clicked.connect(self.home_carriage_clicked)
         self.btnWhiteStrip.clicked.connect(self.move_to_white_calibration)
         self.btnBlackStrip.clicked.connect(self.move_to_black_calibration)
-        self.btnScan.clicked.connect(self.start_scan)
-        self.btnStop.clicked.connect(self.stop)
+        # self.btnScan.clicked.connect(self.start_scan)
+        # self.btnStop.clicked.connect(self.stop)
         self.btnReset.clicked.connect(self.reset_controller)
     
     # saving rig controller scanning config to globally accessable python config file
