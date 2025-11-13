@@ -3,8 +3,8 @@ Details
 """
 # imports
 from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtCore import QTimer, QThread, pyqtSignal, Qt, QMutex, QWaitCondition, QMutexLocker, pyqtSlot, QMessageBox
-from PyQt5.QtWidgets import QMainWindow, QApplication
+from PyQt5.QtCore import QTimer, QThread, pyqtSignal, Qt, QMutex, QWaitCondition, QMutexLocker, pyqtSlot
+from PyQt5.QtWidgets import QMainWindow, QApplication, QMessageBox
 from ui.main_window import Ui_MainWindow
 from controllers.rig_controller import RIGController
 import os
