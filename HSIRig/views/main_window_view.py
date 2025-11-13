@@ -744,7 +744,7 @@ class ScanWorkerThread(QThread):
                 
                 # TODO: Move this homing to seperate thread process so that it is not blocking
                 # Wait for moving with interruptible sleep
-                print("Waiting for move to white calibration strip to complete...")
+                print("Waiting for move to black calibration strip to complete...")
                 start_time = time.time()
                 while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY:
                     pos = self.rig_controller.get_current_position()
@@ -753,7 +753,7 @@ class ScanWorkerThread(QThread):
                     self.msleep(100)  # Use QThread's msleep for better integration
                     
                 if success_y:
-                    print("Status: At white calibration strip")
+                    print("Status: At black calibration strip")
                 else:
                     print("Status: Move failed")
                 # Pause: dialog box here to get user confirmation to continue routine
