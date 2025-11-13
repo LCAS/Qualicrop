@@ -244,18 +244,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
         y_pos = rig_settings.RIG_BLACK_CAL_POS_READ_ONLY # Position still needs calibrating
+        z_pos = 0.0
         self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
 
         # Move to Y axis position (strip location)
         success_y = self.rig_controller.move_axis('Y', y_pos)
+        success_z = self.rig_controller.move_axis('Z', z_pos)
         
         # TODO: Move this homing to seperate thread process so that it is not blocking
         # Wait for moving with interruptible sleep
-        print("Waiting for move to black calibration strip to complete...")
+        print("Waiting for move to white calibration strip to complete...")
         start_time = time.time()
         while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY:
             pos = self.rig_controller.get_current_position()
-            if pos is not None and pos["Y"] == rig_settings.RIG_BLACK_CAL_POS_READ_ONLY and pos["Z"] == rig_settings.RIG_CAM_HEIGHT:
+            if pos is not None and pos["Y"] == rig_settings.RIG_BLACK_CAL_POS_READ_ONLY and pos["Z"] == z_pos:
                 break
             try:
                 self.msleep(100)  # Use QThread's msleep for better integration
@@ -468,8 +470,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # check rig controller is connected
         if self.rig_controller == None or not self.rig_controller.is_connected():
             print("Status: Bed controller not connected")
-            # print(f"rig controller: {self.rig_controller}")
-            # print(f"is connected? : {self.rig_controller.is_connected()}")
             return
         
         self.btnStartAcquire.setEnabled(False)
@@ -478,6 +478,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Create worker thread
         self.scan_worker = ScanWorkerThread(
             main_window=self,
+            rig_controller=self.rig_controller,
+            cam_height=rig_settings.RIG_CAM_HEIGHT,
+            init_pos=rig_settings.RIG_BED_START,
+            end_scan_pos=rig_settings.RIG_BED_END,
+            scan_speed=rig_settings.RIG_SPEED
         )
         
         # Connect signals
@@ -696,21 +701,23 @@ class ScanWorkerThread(QThread):
                 print(f"Moving to white calibration strip")
                 # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
                 y_pos = rig_settings.RIG_WHITE_CAL_POS_READ_ONLY # Position still needs calibrating
+                z_pos = 0
                 self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
 
                 # Move to Y axis position (strip location)
                 success_y = self.rig_controller.move_axis('Y', y_pos)
+                success_z = self.rig_controller.move_axis('Z', z_pos)
                 
                 # Wait for moving with interruptible sleep
                 print("Waiting for move to white calibration strip to complete...")
                 start_time = time.time()
                 while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY:
                     pos = self.rig_controller.get_current_position()
-                    if pos is not None and pos["Y"] == rig_settings.RIG_WHITE_CAL_POS_READ_ONLY and pos["Z"] == rig_settings.RIG_CAM_HEIGHT:
+                    if pos is not None and pos["Y"] == rig_settings.RIG_WHITE_CAL_POS_READ_ONLY and pos["Z"] == z_pos:
                         break
                     self.msleep(100)  # Use QThread's msleep for better integration
                     
-                if success_y:
+                if success_y and success_z:
                     print("Status: At white calibration strip")
                 else:
                     print("Status: Move failed")
@@ -725,16 +732,15 @@ class ScanWorkerThread(QThread):
                 self.status_update.emit("Continuing scan routine...")
 
                 print(f"Moving to black calibration strip")
-                if self.rig_controller != None and not self.rig_controller.is_connected():
-                    print("Status: Bed controller not connected")
-                    return
 
                 # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
                 y_pos = rig_settings.RIG_BLACK_CAL_POS_READ_ONLY # Position still needs calibrating
+                z_pos = 0.0
                 self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
 
                 # Move to Y axis position (strip location)
                 success_y = self.rig_controller.move_axis('Y', y_pos)
+                success_z = self.rig_controller.move_axis('Z', z_pos)
                 
                 # TODO: Move this homing to seperate thread process so that it is not blocking
                 # Wait for moving with interruptible sleep
@@ -742,7 +748,7 @@ class ScanWorkerThread(QThread):
                 start_time = time.time()
                 while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY:
                     pos = self.rig_controller.get_current_position()
-                    if pos is not None and pos["Y"] == rig_settings.RIG_BLACK_CAL_POS_READ_ONLY and pos["Z"] == rig_settings.RIG_CAM_HEIGHT:
+                    if pos is not None and pos["Y"] == rig_settings.RIG_BLACK_CAL_POS_READ_ONLY and pos["Z"] == z_pos:
                         break
                     self.msleep(100)  # Use QThread's msleep for better integration
                     
