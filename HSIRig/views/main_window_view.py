@@ -621,6 +621,32 @@ class ScanWorkerThread(QThread):
                 
             if not self._is_running:
                 return
+            
+            # Check to see if we need to move to calibration positions for black and white
+            if self.main_window.chkCalibration.isChecked():
+                print(f"Moving to white calibration strip")
+                # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
+                y_pos = rig_settings.RIG_WHITE_CAL_POS_READ_ONLY # Position still needs calibrating
+                self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
+
+                # Move to Y axis position (strip location)
+                success_y = self.rig_controller.move_axis('Y', y_pos)
+                
+                # Wait for moving with interruptible sleep
+                print("Waiting for move to white calibration strip to complete...")
+                start_time = time.time()
+                while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY:
+                    pos = self.rig_controller.get_current_position()
+                    if pos is not None and pos["Y"] == rig_settings.RIG_WHITE_CAL_POS_READ_ONLY and pos["Z"] == rig_settings.RIG_CAM_HEIGHT:
+                        break
+                    self.msleep(100)  # Use QThread's msleep for better integration
+                    
+                if success_y:
+                    print("Status: At white calibration strip")
+                else:
+                    print("Status: Move failed")
+                if not self._is_running:
+                    return
                 
             # Move to initial position
             self.status_update.emit("Moving to initial position...")
