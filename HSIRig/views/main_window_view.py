@@ -715,10 +715,10 @@ class ScanWorkerThread(QThread):
                 else:
                     print("Status: Move failed")
 
-                # TODO Pause: dialog box here to get user confirmation to continue routine
+                # Pause: dialog box here to get user confirmation to continue routine
                 self.status_update.emit("At white calibration position. Waiting for user confirmation...")
                 
-                if not self.wait_for_confirmation("Calibration is paused. Do you want to continue?"):
+                if not self.wait_for_confirmation("Calibration paused at white strip. Do you want to continue?"):
                     self.status_update.emit("Scan cancelled by user.")
                     return
                 
