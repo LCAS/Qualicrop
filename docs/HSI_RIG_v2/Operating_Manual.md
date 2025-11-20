@@ -1,7 +1,4 @@
-# HSI Rig V2 Documentations
-
-
-# HSI Rig Operation Manual
+# HSI Rig Operation Manual (W.I.P.)
 
 ## 1. What this document covers
   This document describes how to safely operate the Hyperspectral Scanning (HSI) Rig to acquire spectral image data. It will cover the pre-scan checks, system startup, software operation, and post-scan procedures.
@@ -19,6 +16,7 @@
 
 * Ensure power is disconnected before making hardware adjustments.
 * During operation ensure **E-Stop is withing reach at all time** in the event of a problem
+  * The **E-Stop cuts all power to the rig** (except the camera and pc)
 * Keep hands clear of the moving Y-bed and Z-Axis during operation.
 * Do not open the control box when powered on and only if you know what you are doing.
 * Do not touch the light when on the system is on or after operating has halted, as they could cause injury via a burn.
@@ -39,7 +37,8 @@ Perform these checks before every scanning session.
 
 * Ensure lense caps are off and stores safely before scanning
   * **Put all caps back on once finished using the machine**
-* Inspect lenses, filters, and spectrograph for dust or fingerprints.
+* Inspect lenses, filters for dust or fingerprints.
+* Check to make sure all 4 diffuser glass slides are secure in their mounts on the lights.
 * The **calibration strips are expensive**, therefore when handling calibrations strips:
   * **Ensure you are where latex (or equivilent) gloves**
   * **Handling the strip via the edges**, to prevent surface damages **avoiding touching the top surface of strip**.
@@ -88,21 +87,37 @@ Perform these checks before every scanning session.
 * Power the scanning rig in order:
   1. Rig control box
      * red power switch on left side of the box
+     * Ensure the E-Stop is not engaged
   2. Rig lights
      * black power switch on farthers right side of the box
   3. Camera
+     * Plugging in the camera
   4. Control PC
 
-### 4.2 GUI Overview
+### 4.2 Operating the GUI for a scan
+
+1. start up the HSI GUI
+2. Under the **camera** section:
+   1. Connect to the FX10e camera
+   2. Specify our output directory for image output
+3. Under the **adjust** section:
+   1. Set your shutter settings
+   2. Request your required frame rate
+      * *This is used to calculate the required movement speed for the rig's scannign bed*
+   3. Set the camera exposure
+   4. Specify the **Spectral** and **Spatial** binning
+4. Under the **Rig Controller Connection** section:
+   1. Select from the dropdown the COM port for the scanning rig controller
+      * *This is typically COM3 for the PC attached to the rig, but this could differ*
+5. Under the **Acquisition** section:
+   1. Set your Capture Mode
+   2. Set your Frame Count
+   3. Click the **Start** button to begin scanning
+      * Your can stop the scan routine midway through if required by clicking the **Stop** button next to **Start**
+   4. Repeat the scan process process 
 
 
-### 4.3 Configuring Scan Parameters
-
-
-### 4.4 Performing a Scan
-
-
-### 4.5 Post-Scan Procedures
+### 4.3 Post-Scan Procedures
 
 
 ---
