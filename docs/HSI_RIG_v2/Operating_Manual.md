@@ -82,9 +82,11 @@ Perform these checks before every scanning session.
 
 ## 4. Software Setup and Scan Operation
 
-### 4.1 Starting the System
+### 4.1 Pre-Scan Procedures and System Start-up
 
-* Power the scanning rig in order:
+1. Install the bed panels into the jig of the rig being careful with inserting the smaller piece with the calibration stips attached.
+   * Calibration strips are stored in a blue fabric sleeve and should to removed carefully while wearing gloves and avoiding touching the top surface.
+2. Power the scanning rig in order:
   1. Rig control box
      * red power switch on left side of the box
      * Ensure the E-Stop is not engaged
@@ -114,16 +116,37 @@ Perform these checks before every scanning session.
    2. Set your Frame Count
    3. Click the **Start** button to begin scanning
       * Your can stop the scan routine midway through if required by clicking the **Stop** button next to **Start**
-   4. Repeat the scan process process 
-
+   4. Repeat the scan process process as many time as required
 
 ### 4.3 Post-Scan Procedures
 
-
+1. Disconnect the camera and rig controller from the GUI
+2. Powering off the scanning rig's:
+  1. Camera
+     * Upplugging in the camera
+  2. Shutdown the Control PC
+  3. Rig lights
+     * flip black power switch on farthers right side of the box to off state
+  4. Rig control box
+     * flip red power switch on left side of the box to off state
+     * Engage E-Stop
+3. Removing the bed panels and store them back into the rig's storage box
+   * Make sure to store the calibration strip piece into their fabric sleeve avoiding touching the tops surface and place in the storage carefully.
 ---
 
 ## 5. Troubleshooting (Basic)
 
+These troubleshooting guides are listed as approaches that the User can perform.
+
+Should these issues persists then addition technical assistance will be needed by a technician to investigate and solve.
+
+### Can't connect to rig
+
+* Check that the Rig controller box is powered on and that the E-Stop is not engaged
+* Try power cycling the rig by turning it off and waiting 10-15 seconds before turning back on
+* Check that USB cable is plugged into both the box and PC
+  * Additionally, try a different cable to check is the cable has failed.
+* Check the device is listed under the windows PC's Device Manager
 
 ---
 
