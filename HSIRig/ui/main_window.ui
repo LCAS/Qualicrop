@@ -30,7 +30,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
@@ -42,11 +42,11 @@
         <x>30</x>
         <y>0</y>
         <width>421</width>
-        <height>181</height>
+        <height>231</height>
        </rect>
       </property>
       <property name="title">
-       <string>Camera</string>
+       <string>Rig and Camera Connection</string>
       </property>
       <widget class="QComboBox" name="comboBox">
        <property name="geometry">
@@ -121,7 +121,7 @@
         <enum>Qt::LeftToRight</enum>
        </property>
        <property name="text">
-        <string>Output Folder:</string>
+        <string>Scan Output Folder:</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -163,7 +163,77 @@
         <enum>Qt::RightToLeft</enum>
        </property>
        <property name="text">
-        <string>Calibration:    </string>
+        <string>Calibration:   </string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnRigDisconnect_2">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>290</x>
+         <y>190</y>
+         <width>101</width>
+         <height>32</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Disconnect</string>
+       </property>
+       <property name="checkable">
+        <bool>false</bool>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+       <property name="default">
+        <bool>false</bool>
+       </property>
+       <property name="flat">
+        <bool>false</bool>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btnRigConnect_2">
+       <property name="geometry">
+        <rect>
+         <x>180</x>
+         <y>190</y>
+         <width>101</width>
+         <height>32</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Connect</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="lblControlPort_2">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>160</y>
+         <width>131</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Rig Controller Port:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QComboBox" name="cmbBoxCommPortSelect_2">
+       <property name="geometry">
+        <rect>
+         <x>150</x>
+         <y>160</y>
+         <width>241</width>
+         <height>24</height>
+        </rect>
+       </property>
+       <property name="placeholderText">
+        <string>Select Rig Controller Comm Port</string>
        </property>
       </widget>
      </widget>
@@ -171,7 +241,7 @@
       <property name="geometry">
        <rect>
         <x>30</x>
-        <y>180</y>
+        <y>230</y>
         <width>421</width>
         <height>211</height>
        </rect>
@@ -387,7 +457,7 @@
       <property name="geometry">
        <rect>
         <x>30</x>
-        <y>390</y>
+        <y>440</y>
         <width>421</width>
         <height>161</height>
        </rect>
@@ -550,89 +620,6 @@
         </widget>
        </item>
       </layout>
-     </widget>
-     <widget class="QGroupBox" name="groupBoxRigConnection_2">
-      <property name="geometry">
-       <rect>
-        <x>30</x>
-        <y>560</y>
-        <width>421</width>
-        <height>101</height>
-       </rect>
-      </property>
-      <property name="title">
-       <string>Rig Controller Connection</string>
-      </property>
-      <widget class="QLabel" name="lblControlPort_2">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>30</y>
-         <width>131</width>
-         <height>20</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Controller Port:</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-      </widget>
-      <widget class="QComboBox" name="cmbBoxCommPortSelect_2">
-       <property name="geometry">
-        <rect>
-         <x>150</x>
-         <y>30</y>
-         <width>241</width>
-         <height>24</height>
-        </rect>
-       </property>
-       <property name="placeholderText">
-        <string>Select Rig Controller Comm Port</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="btnRigConnect_2">
-       <property name="geometry">
-        <rect>
-         <x>180</x>
-         <y>60</y>
-         <width>101</width>
-         <height>32</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Connect</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="btnRigDisconnect_2">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="geometry">
-        <rect>
-         <x>290</x>
-         <y>60</y>
-         <width>101</width>
-         <height>32</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Disconnect</string>
-       </property>
-       <property name="checkable">
-        <bool>false</bool>
-       </property>
-       <property name="autoDefault">
-        <bool>false</bool>
-       </property>
-       <property name="default">
-        <bool>false</bool>
-       </property>
-       <property name="flat">
-        <bool>false</bool>
-       </property>
-      </widget>
      </widget>
     </widget>
     <widget class="QWidget" name="tab_3">
