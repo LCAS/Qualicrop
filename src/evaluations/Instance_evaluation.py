@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import (
-    precision_score, recall_score, f1_score, matthews_corrcoef,
+    precision_score, recall_score, f1_score, matthews_corrcoef, cohen_kappa_score,
     precision_recall_curve, auc, confusion_matrix, ConfusionMatrixDisplay
 )
 
@@ -28,6 +28,7 @@ def compute_metrics(all_scores, all_labels, title_suffix=""):
     best_recall = recall_score(all_labels, preds_best, zero_division=0)
     best_f1 = f1_score(all_labels, preds_best, zero_division=0)
     best_mcc = matthews_corrcoef(all_labels, preds_best)
+    best_kappa = cohen_kappa_score(all_labels, preds_best)
 
     # PR Curve
     precisions_curve, recalls_curve, _ = precision_recall_curve(all_labels, all_scores)
@@ -40,6 +41,7 @@ def compute_metrics(all_scores, all_labels, title_suffix=""):
     print(f"Recall         : {best_recall:.4f}")
     print(f"F1-score       : {best_f1:.4f}")
     print(f"MCC            : {best_mcc:.4f}")
+    print(f"Kappa          : {best_kappa:.4f}")
     print(f"PR_AUC         : {pr_auc:.4f}")
     print("\n")
 
