@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import (
     precision_score, recall_score, f1_score, matthews_corrcoef,
-    precision_recall_curve, auc, confusion_matrix, ConfusionMatrixDisplay, cohen_kappa_score
+    confusion_matrix, ConfusionMatrixDisplay, cohen_kappa_score
 )
 
 
@@ -15,20 +15,7 @@ from sklearn.metrics import (
 
 def compute_metrics(y_true, y_pred, class_mode="anomaly"):
    
-    y_scores = y_pred.astype(float)
-
-    # PR curve
-    precisions_curve, recalls_curve, _ = precision_recall_curve(y_true, y_scores)
-    pr_auc = auc(recalls_curve, precisions_curve)
-    plt.figure(figsize=(8,6))
-    plt.plot(recalls_curve, precisions_curve, color='blue', label=f'PR Curve (AUC={pr_auc:.4f})')
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
-    plt.title(f"Precision-Recall Curve")
-    plt.grid(True)
-    plt.legend(loc='lower left')
-    plt.tight_layout()
-    plt.show()
+    #y_scores = y_pred.astype(float)
 
     # Metrics
     if class_mode == "anomaly":
@@ -53,7 +40,6 @@ def compute_metrics(y_true, y_pred, class_mode="anomaly"):
     print(f"F1-score  : {f1:.4f}")
     print(f"MCC       : {mcc:.4f}")
     print(f"Kappa     : {kappa:.4f}")
-    print(f"PR AUC    : {pr_auc:.4f}")
     print("==========================================================")
 
     # Confusion matrix
