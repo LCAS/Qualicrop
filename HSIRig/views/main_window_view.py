@@ -823,6 +823,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print("Status: Stopped")
 
     def closeEvent(self, event):
+        # Save current settings to YAML on exit
+        try:
+            # attempt to persist UI values (camera + rig)
+            self.update_settings()
+        except Exception:
+            pass
+
         # stop UI timer
         try:
             self.timer.stop()
