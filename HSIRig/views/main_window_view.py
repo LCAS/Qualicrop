@@ -11,7 +11,10 @@ import os
 import time
 from controllers.command_client import send_command
 from controllers.rig_controller import RIGController
+
 import rig_settings
+
+from utility import load_settings, save_settings
 
 import ctypes as C
 import numpy as np
@@ -143,8 +146,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnReset.clicked.connect(self.reset_controller)
     
     def loading_settings(self):
-        # TODO: Load setting for camera and rig from yaml file in ./config/settings.yaml
-        pass
+        """
+        Load settings from config/settings.yaml into rig_settings and populate UI fields.
+        """
+        try:
+            settings = load_settings()  # loads into rig_settings as well
+        except Exception as e:
+            print(f"Warning: failed to load settings.yaml: {e}")
+            settings = {}
+
+        # Populate UI text fields if those widgets exist
+        try:
+            if hasattr(self, "txtSpeed"):
+                self.txtSpeed.setText(str(getattr(rig_settings, "RIG_SPEED", "")))
+            if hasattr(self, "txtBedStartPosition"):
+                self.txtBedStartPosition.setText(str(getattr(rig_settings, "RIG_BED_START", "")))
+            if hasattr(self, "txtBedEndPosition"):
+                self.txtBedEndPosition.setText(str(getattr(rig_settings, "RIG_BED_END", "")))
+            if hasattr(self, "txtCameraPosition"):
+                self.txtCameraPosition.setText(str(getattr(rig_settings, "RIG_CAM_HEIGHT", "")))
+        except Exception:
+            pass
     
     def update_settings(self):
         # Saves update and save setting to YAML file
@@ -154,22 +176,41 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     
     # saving rig controller scanning config to globally accessable python config file and yaml file
     def update_rig_settings(self):
-        # TODO: Update this so that setting are saved to yaml config and then reloaded into rig_settings
-        def update_txt_value(var, txtbox):
-            '''update the variable if the txtbox has values and return it is so, else keep value the same'''
-            value = txtbox.text()
-            if str(value) != "":
-                var = float(value) 
-            return var
-        
-        # Reassign the updated value back to rig_settings.RIG_SPEED, since Python passes floats by value (immutable);
-        # updating inside the function doesn't affect the original variable.
-        rig_settings.RIG_SPEED = update_txt_value(rig_settings.RIG_SPEED, self.txtSpeed)
-        rig_settings.RIG_BED_START = update_txt_value(rig_settings.RIG_BED_START, self.txtBedStartPosition)
-        rig_settings.RIG_BED_END = update_txt_value(rig_settings.RIG_BED_END, self.txtBedEndPosition)
-        rig_settings.RIG_CAM_HEIGHT = update_txt_value(rig_settings.RIG_CAM_HEIGHT, self.txtCameraPosition)
+        # Update rig_settings values from UI and save to YAML
+        def update_txt_value(attr_name, txtbox):
+            value = None
+            try:
+                txt = txtbox.text()
+                if str(txt) != "":
+                    value = float(txt)
+            except Exception:
+                value = getattr(rig_settings, attr_name, None)
+            if value is not None:
+                setattr(rig_settings, attr_name, value)
+            return value
 
-        #debug prints
+        update_txt_value("RIG_SPEED", self.txtSpeed)
+        update_txt_value("RIG_BED_START", self.txtBedStartPosition)
+        update_txt_value("RIG_BED_END", self.txtBedEndPosition)
+        update_txt_value("RIG_CAM_HEIGHT", self.txtCameraPosition)
+
+        # Build dict and save
+        settings_to_save = {
+            "RIG_SPEED": getattr(rig_settings, "RIG_SPEED", None),
+            "RIG_BED_START": getattr(rig_settings, "RIG_BED_START", None),
+            "RIG_BED_END": getattr(rig_settings, "RIG_BED_END", None),
+            "RIG_CAM_HEIGHT": getattr(rig_settings, "RIG_CAM_HEIGHT", None),
+            "RIG_WHITE_CAL_POS_READ_ONLY": getattr(rig_settings, "RIG_WHITE_CAL_POS_READ_ONLY", None),
+            "RIG_BLACK_CAL_POS_READ_ONLY": getattr(rig_settings, "RIG_BLACK_CAL_POS_READ_ONLY", None),
+            "RIG_TRAVEL_SPEED_READ_ONLY": getattr(rig_settings, "RIG_TRAVEL_SPEED_READ_ONLY", None),
+            "RIG_TIMEOUT_READ_ONLY": getattr(rig_settings, "RIG_TIMEOUT_READ_ONLY", None),
+        }
+        try:
+            save_settings(settings_to_save)
+        except Exception as e:
+            print(f"Warning: failed to save settings.yaml: {e}")
+
+        # debug prints
         print(f"rig speed: {rig_settings.RIG_SPEED}")
         print(f"rig bed start: {rig_settings.RIG_BED_START}")
         print(f"rig bed end: {rig_settings.RIG_BED_END}")
