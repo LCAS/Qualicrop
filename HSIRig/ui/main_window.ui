@@ -520,7 +520,7 @@
         <enum>Qt::LeftToRight</enum>
        </property>
        <property name="text">
-        <string>Frame Count:</string>
+        <string>Line Count:</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -1246,7 +1246,7 @@
      <x>0</x>
      <y>0</y>
      <width>1459</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>

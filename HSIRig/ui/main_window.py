@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/robert/Documents/qualicrop/Qualicrop/HSIRig/ui/main_window.ui'
+# Form implementation generated from reading ui file './main_window.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.9
 #
@@ -345,7 +345,7 @@ class Ui_MainWindow(object):
         self.tabWidget.addTab(self.tab_3, "")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 1459, 22))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 1459, 21))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -390,7 +390,7 @@ class Ui_MainWindow(object):
         self.groupBoxAquire.setTitle(_translate("MainWindow", "Acquisition"))
         self.btnStartAcquire.setText(_translate("MainWindow", "Start"))
         self.label_8.setText(_translate("MainWindow", "Acquire:"))
-        self.label_10.setText(_translate("MainWindow", "Frame Count:"))
+        self.label_10.setText(_translate("MainWindow", "Line Count:"))
         self.label_11.setText(_translate("MainWindow", "Capture Mode:"))
         self.cmbCaptureMode.setItemText(0, _translate("MainWindow", "1"))
         self.cmbCaptureMode.setItemText(1, _translate("MainWindow", "2"))
@@ -429,3 +429,13 @@ class Ui_MainWindow(object):
         self.lblCurrentCameraPosition.setText(_translate("MainWindow", "Current Camera Position: "))
         self.chkHomeStatus_readonly.setText(_translate("MainWindow", "Homed:"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MainWindow", "Rig Control"))
+
+
+if __name__ == "__main__":
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    MainWindow = QtWidgets.QMainWindow()
+    ui = Ui_MainWindow()
+    ui.setupUi(MainWindow)
+    MainWindow.show()
+    sys.exit(app.exec_())
