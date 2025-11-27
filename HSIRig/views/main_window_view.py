@@ -43,11 +43,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.cam_connected = False
 
         self.add_camera_preview_ui()
-
+        
+        # load Settings from YAML
+        self.loading_settings()
+        
         # rig controller object that should be used when connecting and commanding the rig
         self.rig_controller: RIGController = None 
         # Setup the `setup` tab in the UI for the Rig Control and connections
         self.setup_rig_ui()
+        
+        # setup the buttons for the UI
+        self.configure_buttons()
 
     def add_camera_preview_ui(self):
         # --- replace QLabel with Matplotlib canvas ---
@@ -80,8 +86,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # --- end of eplace QLabel with Matplotlib canvas ---
 
     def setup_rig_ui(self):
-        # setup the buttons for the rig control/settinga page
-        self.configure_buttons()
 
         # get the available com ports and add them to combobox list
         self.update_comm_port_list()
@@ -126,8 +130,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnRigConnect.clicked.connect(self.connect_controller)
         self.btnRigDisconnect.clicked.connect(self.disconnect_controller)
 
-        # Rig update settings button link
-        self.btnRigUpdateSettings.clicked.connect(self.update_rig_settings)
+        # update settings button link
+        self.btnUpdateSettings.clicked.connect(self.update_settings)
 
         # Rig controller buttons configure
         self.btnHomeBed.clicked.connect(self.home_bed_clicked)
@@ -138,8 +142,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.btnStop.clicked.connect(self.stop)
         self.btnReset.clicked.connect(self.reset_controller)
     
-    # saving rig controller scanning config to globally accessable python config file
+    def loading_settings(self):
+        # TODO: Load setting for camera and rig from yaml file in ./config/settings.yaml
+        pass
+    
+    def update_settings(self):
+        # Saves update and save setting to YAML file
+        
+        self.update_camera_settings()
+        self.update_rig_settings()
+    
+    # saving rig controller scanning config to globally accessable python config file and yaml file
     def update_rig_settings(self):
+        # TODO: Update this so that setting are saved to yaml config and then reloaded into rig_settings
         def update_txt_value(var, txtbox):
             '''update the variable if the txtbox has values and return it is so, else keep value the same'''
             value = txtbox.text()
@@ -160,6 +175,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print(f"rig bed end: {rig_settings.RIG_BED_END}")
         print(f"rig cam height: {rig_settings.RIG_CAM_HEIGHT}")
 
+    def update_camera_settings(self):
+        # TODO: implement saving of camera settings to yaml 
+        pass
+
+    # ===================
+    # === RIG CODE ===
+    # ===================
+    
     # connecting to selected COM port from dropdown list
     def connect_controller(self):
         if self.current_tab == 0: # if we are on the camera connection tab
@@ -201,7 +224,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             print("Status: Not connected")
         QApplication.restoreOverrideCursor()
-
 
     # Rig movement to white calibration stip
     def move_to_white_calibration(self):
