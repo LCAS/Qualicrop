@@ -157,6 +157,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Populate UI text fields if those widgets exist
         try:
+            # Rig values
             if hasattr(self, "txtSpeed"):
                 self.txtSpeed.setText(str(getattr(rig_settings, "RIG_SPEED", "")))
             if hasattr(self, "txtBedStartPosition"):
@@ -165,6 +166,73 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.txtBedEndPosition.setText(str(getattr(rig_settings, "RIG_BED_END", "")))
             if hasattr(self, "txtCameraPosition"):
                 self.txtCameraPosition.setText(str(getattr(rig_settings, "RIG_CAM_HEIGHT", "")))
+
+            # Camera / acquisition values
+            if hasattr(self, "txtOutputFolderPath"):
+                self.txtOutputFolderPath.setText(str(getattr(rig_settings, "OUTPUT_FOLDER", "")))
+
+            if hasattr(self, "textEditFrameRate"):
+                # QTextEdit or similar; prefer plain text setter if available
+                try:
+                    self.textEditFrameRate.setPlainText(str(getattr(rig_settings, "CAMERA_FRAME_RATE", "")))
+                except Exception:
+                    try:
+                        self.textEditFrameRate.setText(str(getattr(rig_settings, "CAMERA_FRAME_RATE", "")))
+                    except Exception:
+                        pass
+
+            if hasattr(self, "textEditExposure"):
+                try:
+                    self.textEditExposure.setPlainText(str(getattr(rig_settings, "CAMERA_EXPOSURE", "")))
+                except Exception:
+                    try:
+                        self.textEditExposure.setText(str(getattr(rig_settings, "CAMERA_EXPOSURE", "")))
+                    except Exception:
+                        pass
+
+            if hasattr(self, "textEditFrameCount"):
+                try:
+                    self.textEditFrameCount.setPlainText(str(getattr(rig_settings, "CAMERA_LINE_COUNT", "")))
+                except Exception:
+                    try:
+                        self.textEditFrameCount.setText(str(getattr(rig_settings, "CAMERA_LINE_COUNT", "")))
+                    except Exception:
+                        pass
+
+            # Combobox helpers: try to match item text to saved value, fallback to index 0
+            def set_combobox_to_value(cmb, val):
+                try:
+                    target = str(val)
+                    for i in range(cmb.count()):
+                        if str(cmb.itemText(i)) == target:
+                            cmb.setCurrentIndex(i)
+                            return
+                except Exception:
+                    pass
+                try:
+                    cmb.setCurrentIndex(0)
+                except Exception:
+                    pass
+
+            if hasattr(self, "cmbShutter"):
+                shutter = str(getattr(rig_settings, "CAMERA_SHUTTER", "Open"))
+                # try match text, else set by simple open/close
+                set_combobox_to_value(self.cmbShutter, shutter)
+                try:
+                    if self.cmbShutter.currentIndex() not in range(self.cmbShutter.count()):
+                        self.cmbShutter.setCurrentIndex(0 if shutter.lower().startswith("open") else 1)
+                except Exception:
+                    pass
+
+            if hasattr(self, "cmbSpectralBin"):
+                set_combobox_to_value(self.cmbSpectralBin, getattr(rig_settings, "CAMERA_SPECTRAL_BIN", 1))
+
+            if hasattr(self, "cmbSpatialBin"):
+                set_combobox_to_value(self.cmbSpatialBin, getattr(rig_settings, "CAMERA_SPATIAL_BIN", 1))
+
+            if hasattr(self, "cmbCaptureMode"):
+                set_combobox_to_value(self.cmbCaptureMode, getattr(rig_settings, "CAMERA_CAPTURE_MODE", 1))
+
         except Exception:
             pass
     
