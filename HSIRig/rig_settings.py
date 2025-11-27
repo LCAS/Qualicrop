@@ -29,3 +29,21 @@ RIG_TRAVEL_SPEED_READ_ONLY = 6000
 RIG_TIMEOUT_READ_ONLY = 95 # timeout in seconds
 RIG_WHITE_CAL_POS_READ_ONLY = 250.0 # TODO: Check Value
 RIG_BLACK_CAL_POS_READ_ONLY = 260.0 # TODO: Check Value
+
+# =========================
+# ==== Camera / UI defaults
+# =========================
+
+# Shutter: "Open" or "Close"
+CAMERA_SHUTTER = "Open"
+# Frame rate and exposure defaults
+CAMERA_FRAME_RATE = 50.0
+CAMERA_EXPOSURE = 20.0
+# Binning and modes
+CAMERA_SPECTRAL_BIN = 1
+CAMERA_SPATIAL_BIN = 1
+CAMERA_CAPTURE_MODE = 1
+CAMERA_LINE_COUNT = 0
+
+# Output folder for scan results
+OUTPUT_FOLDER = ""

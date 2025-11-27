@@ -217,9 +217,125 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print(f"rig cam height: {rig_settings.RIG_CAM_HEIGHT}")
 
     def update_camera_settings(self):
-        # TODO: implement saving of camera settings to yaml 
-        pass
+        # Read UI camera controls and save to YAML via save_settings()
+        try:
+            # shutter
+            cam_shutter = getattr(rig_settings, "CAMERA_SHUTTER", "Open")
+            if hasattr(self, "cmbShutter"):
+                try:
+                    cam_shutter = self.cmbShutter.currentText()
+                except Exception:
+                    cam_shutter = self.cmbShutter.currentIndex()
 
+            # frame rate
+            frame_rate = getattr(rig_settings, "CAMERA_FRAME_RATE", None)
+            if hasattr(self, "textEditFrameRate"):
+                try:
+                    frame_rate = float(self.textEditFrameRate.toPlainText().strip())
+                except Exception:
+                    try:
+                        frame_rate = float(self.textEditFrameRate.text().strip())
+                    except Exception:
+                        pass
+
+            # exposure
+            exposure = getattr(rig_settings, "CAMERA_EXPOSURE", None)
+            if hasattr(self, "textEditExposure"):
+                try:
+                    exposure = float(self.textEditExposure.toPlainText().strip())
+                except Exception:
+                    try:
+                        exposure = float(self.textEditExposure.text().strip())
+                    except Exception:
+                        pass
+
+            # spectral bin
+            spectral_bin = getattr(rig_settings, "CAMERA_SPECTRAL_BIN", 1)
+            if hasattr(self, "cmbSpectralBin"):
+                try:
+                    spectral_bin = int(self.cmbSpectralBin.currentText())
+                except Exception:
+                    try:
+                        spectral_bin = int(self.cmbSpectralBin.currentIndex())
+                    except Exception:
+                        pass
+
+            # spatial bin
+            spatial_bin = getattr(rig_settings, "CAMERA_SPATIAL_BIN", 1)
+            if hasattr(self, "cmbSpatialBin"):
+                try:
+                    spatial_bin = int(self.cmbSpatialBin.currentText())
+                except Exception:
+                    try:
+                        spatial_bin = int(self.cmbSpatialBin.currentIndex())
+                    except Exception:
+                        pass
+
+            # capture mode
+            capture_mode = getattr(rig_settings, "CAMERA_CAPTURE_MODE", 1)
+            if hasattr(self, "cmbCaptureMode"):
+                try:
+                    capture_mode = int(self.cmbCaptureMode.currentText())
+                except Exception:
+                    try:
+                        capture_mode = int(self.cmbCaptureMode.currentIndex())
+                    except Exception:
+                        pass
+
+            # line/frame count
+            line_count = getattr(rig_settings, "CAMERA_LINE_COUNT", 0)
+            if hasattr(self, "textEditFrameCount"):
+                try:
+                    line_count = int(self.textEditFrameCount.toPlainText().strip())
+                except Exception:
+                    try:
+                        line_count = int(self.textEditFrameCount.text().strip())
+                    except Exception:
+                        pass
+
+            # output folder
+            output_folder = getattr(rig_settings, "OUTPUT_FOLDER", "")
+            if hasattr(self, "txtOutputFolderPath"):
+                try:
+                    output_folder = self.txtOutputFolderPath.text().strip()
+                except Exception:
+                    pass
+
+            # Apply to rig_settings
+            setattr(rig_settings, "CAMERA_SHUTTER", cam_shutter)
+            setattr(rig_settings, "CAMERA_FRAME_RATE", frame_rate)
+            setattr(rig_settings, "CAMERA_EXPOSURE", exposure)
+            setattr(rig_settings, "CAMERA_SPECTRAL_BIN", spectral_bin)
+            setattr(rig_settings, "CAMERA_SPATIAL_BIN", spatial_bin)
+            setattr(rig_settings, "CAMERA_CAPTURE_MODE", capture_mode)
+            setattr(rig_settings, "CAMERA_LINE_COUNT", line_count)
+            setattr(rig_settings, "OUTPUT_FOLDER", output_folder)
+
+            # Build dict to save (include rig keys so file is merged cleanly)
+            settings_to_save = {
+                "CAMERA_SHUTTER": cam_shutter,
+                "CAMERA_FRAME_RATE": frame_rate,
+                "CAMERA_EXPOSURE": exposure,
+                "CAMERA_SPECTRAL_BIN": spectral_bin,
+                "CAMERA_SPATIAL_BIN": spatial_bin,
+                "CAMERA_CAPTURE_MODE": capture_mode,
+                "CAMERA_LINE_COUNT": line_count,
+                "OUTPUT_FOLDER": output_folder,
+                "RIG_SPEED": getattr(rig_settings, "RIG_SPEED", None),
+                "RIG_BED_START": getattr(rig_settings, "RIG_BED_START", None),
+                "RIG_BED_END": getattr(rig_settings, "RIG_BED_END", None),
+                "RIG_CAM_HEIGHT": getattr(rig_settings, "RIG_CAM_HEIGHT", None),
+                "RIG_WHITE_CAL_POS_READ_ONLY": getattr(rig_settings, "RIG_WHITE_CAL_POS_READ_ONLY", None),
+                "RIG_BLACK_CAL_POS_READ_ONLY": getattr(rig_settings, "RIG_BLACK_CAL_POS_READ_ONLY", None),
+                "RIG_TRAVEL_SPEED_READ_ONLY": getattr(rig_settings, "RIG_TRAVEL_SPEED_READ_ONLY", None),
+                "RIG_TIMEOUT_READ_ONLY": getattr(rig_settings, "RIG_TIMEOUT_READ_ONLY", None),
+            }
+
+            save_settings(settings_to_save)
+            print(f"Saved camera settings: shutter={cam_shutter}, fr={frame_rate}, exp={exposure}, sb={spectral_bin}, spb={spatial_bin}, mode={capture_mode}, lines={line_count}, out={output_folder}")
+        except Exception as e:
+            print(f"Warning: failed to save camera settings: {e}")
+    
     # ===================
     # === RIG CODE ===
     # ===================
