@@ -200,24 +200,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         pass
 
             # Combobox helpers: try to match item text to saved value, fallback to index 0
-            def set_combobox_to_value(cmb, val):
+            def set_combobox_to_value(cmb, val, human_name=None):
+                """
+                Try to set combobox to item whose text equals val.
+                If not found, set index 0 and show a warning dialog to the user
+                (only when val is non-empty) to indicate the loaded value was invalid.
+                Returns True if matched, False if fallback used.
+                """
                 try:
                     target = str(val)
                     for i in range(cmb.count()):
                         if str(cmb.itemText(i)) == target:
                             cmb.setCurrentIndex(i)
-                            return
+                            return True
                 except Exception:
                     pass
+                # not found -> fallback to index 0
                 try:
                     cmb.setCurrentIndex(0)
                 except Exception:
                     pass
+                # show warning if a non-empty value failed to match
+                try:
+                    if val is not None and str(val) != "":
+                        name = human_name or cmb.objectName()
+                        QMessageBox.warning(
+                            self,
+                            "Settings load",
+                            f"Could not load saved value '{val}' for '{name}'. Using default selection."
+                        )
+                except Exception:
+                    pass
+                return False
 
             if hasattr(self, "cmbShutter"):
                 shutter = str(getattr(rig_settings, "CAMERA_SHUTTER", "Open"))
                 # try match text, else set by simple open/close
-                set_combobox_to_value(self.cmbShutter, shutter)
+                set_combobox_to_value(self.cmbShutter, shutter, "Camera shutter")
                 try:
                     if self.cmbShutter.currentIndex() not in range(self.cmbShutter.count()):
                         self.cmbShutter.setCurrentIndex(0 if shutter.lower().startswith("open") else 1)
@@ -225,13 +244,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     pass
 
             if hasattr(self, "cmbSpectralBin"):
-                set_combobox_to_value(self.cmbSpectralBin, getattr(rig_settings, "CAMERA_SPECTRAL_BIN", 1))
+                set_combobox_to_value(self.cmbSpectralBin, getattr(rig_settings, "CAMERA_SPECTRAL_BIN", 1), "Spectral bin")
 
             if hasattr(self, "cmbSpatialBin"):
-                set_combobox_to_value(self.cmbSpatialBin, getattr(rig_settings, "CAMERA_SPATIAL_BIN", 1))
+                set_combobox_to_value(self.cmbSpatialBin, getattr(rig_settings, "CAMERA_SPATIAL_BIN", 1), "Spatial bin")
 
             if hasattr(self, "cmbCaptureMode"):
-                set_combobox_to_value(self.cmbCaptureMode, getattr(rig_settings, "CAMERA_CAPTURE_MODE", 1))
+                set_combobox_to_value(self.cmbCaptureMode, getattr(rig_settings, "CAMERA_CAPTURE_MODE", 1), "Capture mode")
 
         except Exception:
             pass
