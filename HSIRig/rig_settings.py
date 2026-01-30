@@ -20,6 +20,7 @@ RIG_BED_END = 600.0
 
 # Rig camera height position
 RIG_CAM_HEIGHT = 0.0
+RIG_CAM_HEIGHT_OFFSET = 200.0 # This is the distance from surface of bed (in `mm` and the camera lense when camera is at 0 (at the lowest positions)
 
 # =========================
 # ==== READ-ONLY VALUES====
@@ -46,4 +47,4 @@ CAMERA_CAPTURE_MODE = 1
 CAMERA_LINE_COUNT = 0
 
 # Output folder for scan results
-OUTPUT_FOLDER = ""
+OUTPUT_FOLDER = "output/"

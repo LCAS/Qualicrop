@@ -3,7 +3,7 @@
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
   <property name="windowModality">
-   <enum>Qt::NonModal</enum>
+   <enum>Qt::WindowModality::NonModal</enum>
   </property>
   <property name="geometry">
    <rect>
@@ -73,13 +73,13 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="text">
         <string>Camera:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QPushButton" name="btnCameraConnect">
@@ -118,13 +118,13 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="text">
         <string>Scan Output Folder:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLineEdit" name="txtOutputFolderPath">
@@ -147,7 +147,7 @@
         </rect>
        </property>
        <property name="text">
-        <string>...</string>
+        <string>Set</string>
        </property>
       </widget>
       <widget class="QCheckBox" name="chkCalibration">
@@ -160,7 +160,7 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::RightToLeft</enum>
+        <enum>Qt::LayoutDirection::RightToLeft</enum>
        </property>
        <property name="text">
         <string>Calibration:   </string>
@@ -220,7 +220,7 @@
         <string>Rig Controller Port:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QComboBox" name="cmbBoxCommPortSelect_2">
@@ -259,13 +259,13 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="text">
         <string>Shutter:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QTextEdit" name="textEditFrameRate">
@@ -298,13 +298,13 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="text">
         <string>Frame Rate:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLabel" name="label_5">
@@ -317,13 +317,13 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="text">
         <string>Exposure:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLabel" name="label_6">
@@ -336,13 +336,13 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="text">
         <string>Spectral Binning:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLabel" name="label_7">
@@ -355,13 +355,13 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="text">
         <string>Spatial Binning:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QComboBox" name="cmbSpectralBin">
@@ -488,13 +488,13 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="text">
         <string>Acquire:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QTextEdit" name="textEditFrameCount">
@@ -517,13 +517,13 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="text">
         <string>Line Count:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLabel" name="label_11">
@@ -536,13 +536,13 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::LeftToRight</enum>
+        <enum>Qt::LayoutDirection::LeftToRight</enum>
        </property>
        <property name="text">
         <string>Capture Mode:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QComboBox" name="cmbCaptureMode">
@@ -803,7 +803,7 @@
         <string>Speed (mm/minute):</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLabel" name="lblBedEnd">
@@ -819,7 +819,7 @@
         <string>Bed End Position (mm):</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLineEdit" name="txtBedEndPosition">
@@ -832,7 +832,7 @@
         </rect>
        </property>
        <property name="inputMethodHints">
-        <set>Qt::ImhDigitsOnly</set>
+        <set>Qt::InputMethodHint::ImhDigitsOnly</set>
        </property>
        <property name="placeholderText">
         <string>Front of Bed End position (in mm)</string>
@@ -848,7 +848,7 @@
         </rect>
        </property>
        <property name="inputMethodHints">
-        <set>Qt::ImhDigitsOnly</set>
+        <set>Qt::InputMethodHint::ImhDigitsOnly</set>
        </property>
        <property name="text">
         <string extracomment="Movement Speed in mm per minute"/>
@@ -867,7 +867,7 @@
         </rect>
        </property>
        <property name="inputMethodHints">
-        <set>Qt::ImhDigitsOnly</set>
+        <set>Qt::InputMethodHint::ImhDigitsOnly</set>
        </property>
        <property name="placeholderText">
         <string>Front of Bed Start position (in mm)</string>
@@ -886,7 +886,7 @@
         <string>Bed Start Position (mm):</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLabel" name="lblCameraPosition">
@@ -902,7 +902,7 @@
         <string>Camera Position (mm):</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLineEdit" name="txtCameraPosition">
@@ -915,7 +915,7 @@
         </rect>
        </property>
        <property name="inputMethodHints">
-        <set>Qt::ImhDigitsOnly</set>
+        <set>Qt::InputMethodHint::ImhDigitsOnly</set>
        </property>
        <property name="placeholderText">
         <string>Camera height position (in mm)</string>
@@ -932,7 +932,6 @@
        </property>
        <property name="font">
         <font>
-         <weight>75</weight>
          <bold>true</bold>
          <underline>true</underline>
         </font>
@@ -941,7 +940,7 @@
         <string>Motion Parameters</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignCenter</set>
+        <set>Qt::AlignmentFlag::AlignCenter</set>
        </property>
       </widget>
       <widget class="QLabel" name="lblBedParam">
@@ -955,7 +954,6 @@
        </property>
        <property name="font">
         <font>
-         <weight>75</weight>
          <bold>true</bold>
          <underline>true</underline>
         </font>
@@ -964,7 +962,7 @@
         <string>Bed Parameters</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignCenter</set>
+        <set>Qt::AlignmentFlag::AlignCenter</set>
        </property>
       </widget>
      </widget>
@@ -993,7 +991,7 @@
         <string>Controller Port:</string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QComboBox" name="cmbBoxCommPortSelect">
@@ -1061,7 +1059,7 @@
        </rect>
       </property>
       <property name="orientation">
-       <enum>Qt::Vertical</enum>
+       <enum>Qt::Orientation::Vertical</enum>
       </property>
      </widget>
      <widget class="Line" name="line_3">
@@ -1074,7 +1072,7 @@
        </rect>
       </property>
       <property name="orientation">
-       <enum>Qt::Horizontal</enum>
+       <enum>Qt::Orientation::Horizontal</enum>
       </property>
      </widget>
      <widget class="Line" name="line_4">
@@ -1087,7 +1085,7 @@
        </rect>
       </property>
       <property name="orientation">
-       <enum>Qt::Horizontal</enum>
+       <enum>Qt::Orientation::Horizontal</enum>
       </property>
      </widget>
      <widget class="Line" name="line_5">
@@ -1100,7 +1098,7 @@
        </rect>
       </property>
       <property name="orientation">
-       <enum>Qt::Horizontal</enum>
+       <enum>Qt::Orientation::Horizontal</enum>
       </property>
      </widget>
      <widget class="QGroupBox" name="groupBox_3">
@@ -1128,7 +1126,7 @@
         <string>Current Bed Position: </string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLabel" name="lblCurrentCameraPosition">
@@ -1144,7 +1142,7 @@
         <string>Current Camera Position: </string>
        </property>
        <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
        </property>
       </widget>
       <widget class="QLineEdit" name="txtCurrenBedPosition_readonly">
@@ -1157,7 +1155,7 @@
         </rect>
        </property>
        <property name="inputMethodHints">
-        <set>Qt::ImhDigitsOnly</set>
+        <set>Qt::InputMethodHint::ImhDigitsOnly</set>
        </property>
        <property name="readOnly">
         <bool>true</bool>
@@ -1176,7 +1174,7 @@
         </rect>
        </property>
        <property name="inputMethodHints">
-        <set>Qt::ImhDigitsOnly</set>
+        <set>Qt::InputMethodHint::ImhDigitsOnly</set>
        </property>
        <property name="readOnly">
         <bool>true</bool>
@@ -1198,7 +1196,7 @@
         </rect>
        </property>
        <property name="layoutDirection">
-        <enum>Qt::RightToLeft</enum>
+        <enum>Qt::LayoutDirection::RightToLeft</enum>
        </property>
        <property name="text">
         <string>Homed:</string>
@@ -1221,7 +1219,7 @@
        </rect>
       </property>
       <property name="orientation">
-       <enum>Qt::Vertical</enum>
+       <enum>Qt::Orientation::Vertical</enum>
       </property>
      </widget>
     </widget>
@@ -1236,7 +1234,7 @@
      </rect>
     </property>
     <property name="orientation">
-     <enum>Qt::Vertical</enum>
+     <enum>Qt::Orientation::Vertical</enum>
     </property>
    </widget>
    <widget class="Line" name="line_7">
@@ -1249,7 +1247,7 @@
      </rect>
     </property>
     <property name="orientation">
-     <enum>Qt::Vertical</enum>
+     <enum>Qt::Orientation::Vertical</enum>
     </property>
    </widget>
    <widget class="Line" name="line_9">
@@ -1262,7 +1260,7 @@
      </rect>
     </property>
     <property name="orientation">
-     <enum>Qt::Horizontal</enum>
+     <enum>Qt::Orientation::Horizontal</enum>
     </property>
    </widget>
    <widget class="QPushButton" name="btnUpdateSettings">
@@ -1285,7 +1283,7 @@
      <x>0</x>
      <y>0</y>
      <width>1459</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>

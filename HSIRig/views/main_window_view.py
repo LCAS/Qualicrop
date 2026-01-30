@@ -9,13 +9,15 @@ from ui.main_window import Ui_MainWindow
 from controllers.rig_controller import RIGController
 import os
 import time
+import math
 from controllers.command_client import send_command
 from controllers.rig_controller import RIGController
 
 import rig_settings
 
 from utility import load_settings, save_settings
-
+import gc
+import sys
 import ctypes as C
 import numpy as np
 from queue import Queue, Empty
@@ -28,38 +30,299 @@ except ImportError:
 from matplotlib.figure import Figure
 
 from SpecSensor import SpecSensor
+from scipy.io import savemat
+from envi_io import write_envi_bil, load_envi_cube_if_exists
 
-WIDTH = 1024
-BAND_IDXS = np.array([15, 60, 90], dtype=int)  # R,G,B (0-based)
+WIDTH = 1024  # Spatial width of the camera line
+CAMERA_LENSE_FOV = 38
+BAND_IDXS = np.array([202, 120, 0], dtype=int)  # R,G,B (0-based)
 ROLLING_HEIGHT = 512
 QUEUE_MAX = 4096
+READOUT_TIME= 3 #milliseconds
+
+buffer_list = list()
+white_buffer = list()
+dark_buffer = list()
+
+
+
+
+
+
+def find_rgb_bands(lam: np.ndarray) -> np.ndarray:
+    """
+    Port of MATLAB findRGBbands(lambda).
+    Returns 0-based indices [R, G, B] based on wavelength thresholds.
+
+    MATLAB expects lambda in micrometers (~0.4..0.7). If lam looks like nm (e.g. 450..900),
+    we convert to micrometers by /1000.
+    """
+    lam = np.asarray(lam, dtype=float).ravel()
+
+    # Heuristic: if wavelengths look like nm, convert to um
+    if lam.size and lam.max() > 5.0:
+        lam = lam / 1000.0
+
+    red   = 0.6329
+    green = 0.5510
+    blue  = 0.454528
+
+    # MATLAB: B=max(find(lambda<=blue)); if empty B=1
+    b_idx = np.where(lam <= blue)[0]
+    B = int(b_idx.max()) if b_idx.size else 0  # MATLAB 1 -> python 0
+
+    # MATLAB: R=max(find(lambda<=red)); if empty R=end
+    r_idx = np.where(lam <= red)[0]
+    R = int(r_idx.max()) if r_idx.size else int(lam.size - 1)
+
+    # MATLAB: G=max(find(lambda<=green)); if empty G=2
+    g_idx = np.where(lam <= green)[0]
+    G = int(g_idx.max()) if g_idx.size else 1  # MATLAB 2 -> python 1
+
+    return np.array([R, G, B], dtype=int)
+
+
+def make_rgb_image(image_cube: np.ndarray,
+                   lam: np.ndarray,
+                   brightness: float = 1.0,
+                   eps: float = 1e-12,
+                   clip01: bool = True) -> np.ndarray:
+    """
+    UZ:Port of my MATLAB makeRGBimage(imageCube, lambda, brightness).
+
+    image_cube: H x W x B
+    lam: vector length B
+    brightness: MATLAB default 1.25
+    Returns float RGB in [0,1] if clip01=True.
+    """
+    cube = np.asarray(image_cube)
+    if cube.ndim != 3:
+        raise ValueError("image_cube must be 3D: H x W x Bands")
+
+    _, _, B = cube.shape
+    out = find_rgb_bands(lam)
+    if out.max() >= B:
+        raise ValueError(f"RGB band index out of range. bands={B}, out={out.tolist()}")
+
+    rgb = cube[:, :, out].astype(np.float32)  # H x W x 3
+
+    # MATLAB normalization per channel:
+    #   ch = ch - min(ch)
+    #   ch = (brightness * ch) / max(ch)
+    for i in range(3):
+        ch = rgb[:, :, i]
+        ch = ch - np.min(ch)
+        mx = np.max(ch)
+        if mx > eps:
+            ch = (brightness * ch) / mx
+        else:
+            ch = ch * 0.0
+        if clip01:
+            ch = np.clip(ch, 0.0, 1.0)
+        rgb[:, :, i] = ch
+
+    return rgb
+
+
+def make_rgb_line(line_pixels_by_band: np.ndarray,
+                  lam: np.ndarray,
+                  brightness: float = 1.25) -> np.ndarray:
+    """
+    Helper for linescan:
+    line_pixels_by_band: (WIDTH, bands) uint16/float/...
+    Returns uint8 RGB: (WIDTH, 3)
+    """
+    line = np.asarray(line_pixels_by_band)
+    if line.ndim != 2:
+        raise ValueError("line must be 2D: (pixels, bands)")
+
+    cube = line[None, :, :]                       # 1 x WIDTH x bands
+    rgb01 = make_rgb_image(cube, lam, brightness) # 1 x WIDTH x 3 float [0..1]
+    return (rgb01[0] * 255.0).astype(np.uint8)    # WIDTH x 3 uint8
+
+
+
 
 # class
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-        
+
         # Track what tab we are on
         self.current_tab = 0
         # track if camera is connected (NOTE: Might be better way to get this from SDK request)
         self.cam_connected = False
 
         self.add_camera_preview_ui()
-        
+
         # load Settings from YAML
         self.loading_settings()
-        
+
         # rig controller object that should be used when connecting and commanding the rig
-        self.rig_controller: RIGController = None 
-        # Setup the `setup` tab in the UI for the Rig Control and connections
+        self.rig_controller: RIGController = None
+
+        # Set up the `setup` tab in the UI for the Rig Control and connections
         self.setup_rig_ui()
-        
+
         # setup the buttons for the UI
         self.configure_buttons()
 
+        self.white_calibration_data = False
+        self.dark_calibration_data = False
+
+        self.apply_calibration=False
+
+    def _drain_queue(self, q):
+        """Remove all pending items so they don't keep memory alive."""
+        try:
+            while True:
+                q.get_nowait()
+        except Exception:
+            pass
+
+    def _clear_memory_after_save(self, aggressive: bool = True):
+        """
+        Explicitly release references to large buffers and force GC.
+        Call this right after you finish saving a scan/calibration.
+        """
+        # Clear big line buffers
+        try:
+            self.hsi_lines.clear()
+        except Exception:
+            self.hsi_lines = []
+
+        try:
+            self.white_cal_lines.clear()
+        except Exception:
+            self.white_cal_lines = []
+
+        try:
+            self.dark_cal_lines.clear()
+        except Exception:
+            self.dark_cal_lines = []
+
+        # Drain queue (important: queue holds numpy arrays)
+        try:
+            if hasattr(self, "line_queue") and self.line_queue is not None:
+                self._drain_queue(self.line_queue)
+        except Exception:
+            pass
+
+        # Drop rolling preview view if you want to aggressively free
+        # (optional; normally rgb_img is small-ish, but keep it if needed)
+        if aggressive:
+            try:
+                # Keep the preview array allocated (fast) OR uncomment to reinit
+                # self.rgb_img = np.zeros((ROLLING_HEIGHT, WIDTH, 3), dtype=np.uint8)
+                pass
+            except Exception:
+                pass
+
+        # Force GC
+        gc.collect()
+
+        # OPTIONAL: On Linux, return freed heap pages to OS
+        # (No-op on Windows; safe to wrap)
+        if sys.platform.startswith("linux"):
+            try:
+                import ctypes
+                libc = ctypes.CDLL("libc.so.6")
+                libc.malloc_trim(0)
+            except Exception:
+                pass
+
+    def _apply_elm(self, line16: np.ndarray, eps: float = 1e-4) -> np.ndarray:
+        """
+        Apply ELM calibration on a single line: (WIDTH, bands) uint16 -> float32.
+        calibrated = (raw - dark) / (white - dark + eps)
+        Returns float32 (WIDTH, bands). If refs missing, returns raw as float32.
+        """
+        if self.white_ref is None or self.dark_ref is None:
+            return line16.astype(np.float32)
+
+        # broadcast refs (bands,) onto (WIDTH, bands)
+        #raw = (line16.astype(np.float32)/10000).astype(np.float32)
+        #self.white_ref=(self.white_ref/10000).astype(np.float32)
+        #self.dark_ref=(self.dark_ref/10000).astype(np.float32)
+        raw = line16.astype(np.float32) / 10000.0
+        white = self.white_ref.astype(np.float32) / 10000.0
+        dark = self.dark_ref.astype(np.float32) / 10000.0
+
+        denom = white - dark
+        denom = np.maximum(denom, 1e-4)  # reflectance-scale epsilon
+
+        corr = (raw - dark) / denom
+        corr = np.clip(corr, 0.0, 1.0)
+        #denom = (self.white_ref - self.dark_ref).astype(np.float32)
+        #denom = denom + eps
+        #return (raw - self.dark_ref) / denom
+        return corr
+
+    def _finalize_and_save_calibration(self, kind: str):
+        """
+        kind: "white" or "dark"
+        Builds calibration reference from collected lines, saves ENVI, and updates refs.
+        """
+        try:
+            rig_settings.OUTPUT_FOLDER = self.txtOutputFolderPath.text()
+            out_dir = getattr(rig_settings, "OUTPUT_FOLDER", ".")
+            os.makedirs(out_dir, exist_ok=True)
+
+            if kind == "white":
+                if len(self.white_cal_lines) == 0:
+                    return
+                cube = np.stack(self.white_cal_lines, axis=0)  # (lines, WIDTH, bands)
+                # save cube as ENVI BIL
+                ts = time.strftime("%Y%m%d_%H%M%S")
+                base_path = os.path.join(out_dir, f"white_calib_{ts}")
+                write_envi_bil(
+                    base_path=base_path,
+                    cube=cube.astype(np.uint16, copy=False),
+                    wavelength=self.lambda_vec if (
+                                self.lambda_vec is not None and len(self.lambda_vec) == cube.shape[2]) else None,
+                    description="White calibration (BIL)",
+                )
+                # update reference (mean over lines and samples)
+                self.white_ref = cube.mean(axis=(0, 1)).astype(np.float32)
+                print(f"Saved white calibration ENVI: {base_path}.bil/.hdr")
+                self.white_cal_lines = []  # clear after saving
+
+            elif kind == "dark":
+                if len(self.dark_cal_lines) == 0:
+                    return
+                cube = np.stack(self.dark_cal_lines, axis=0)
+                ts = time.strftime("%Y%m%d_%H%M%S")
+                base_path = os.path.join(out_dir, f"dark_calib_{ts}")
+                write_envi_bil(
+                    base_path=base_path,
+                    cube=cube.astype(np.uint16, copy=False),
+                    wavelength=self.lambda_vec if (
+                                self.lambda_vec is not None and len(self.lambda_vec) == cube.shape[2]) else None,
+                    description="Dark calibration (BIL)",
+                )
+                self.dark_ref = cube.mean(axis=(0, 1)).astype(np.float32)
+                print(f"Saved dark calibration ENVI: {base_path}.bil/.hdr")
+                self.dark_cal_lines = []
+
+        except Exception as e:
+            print(f"Calibration save failed ({kind}): {e}")
+
     def add_camera_preview_ui(self):
         # --- replace QLabel with Matplotlib canvas ---
+        self.hsi_lines = []  # list of (WIDTH, bands) lines collected during scan
+        # --- calibration buffers (collected during calibration pauses) ---
+        self.white_cal_lines = []   # list of (WIDTH, bands)
+        self.dark_cal_lines = []    # list of (WIDTH, bands)
+
+        # references used for ELM (each is (bands,) float32)
+        self.white_ref = None
+        self.dark_ref = None
+
+        # internal flag to know if we should finalize/save when modes change
+        self._prev_cal_mode = None  # None / "white" / "dark"
+
+
         self.rgb_img = np.zeros((ROLLING_HEIGHT, WIDTH, 3), dtype=np.uint8)
 
         self.canvas = FigureCanvas(Figure(figsize=(6, 3)))
@@ -79,8 +342,81 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._lines_rcvd = 0
         self._bands_in_line = None
 
+        # ---- Added for MATLAB-style RGB from wavelength vector ----
+        # Wavelength vector (length must equal bands in each line). Set this after opening camera.
+        self.lambda_vec = np.asarray([
+    400.00,401.34,402.68,404.02,405.36,406.70,408.04,409.38,410.71,412.05,413.39,414.73,
+    416.07,417.41,418.75,420.09,421.43,422.77,424.11,425.45,426.79,428.12,429.46,430.80,
+    432.14,433.48,434.82,436.16,437.50,438.84,440.18,441.52,442.86,444.20,445.54,446.88,
+    448.21,449.55,450.89,452.23,453.57,454.91,456.25,457.59,458.93,460.27,461.61,462.95,
+    464.29,465.62,466.96,468.30,469.64,470.98,472.32,473.66,475.00,476.34,477.68,479.02,
+    480.36,481.70,483.04,484.38,485.71,487.05,488.39,489.73,491.07,492.41,493.75,495.09,
+    496.43,497.77,499.11,500.45,501.79,503.12,504.46,505.80,507.14,508.48,509.82,511.16,
+    512.50,513.84,515.18,516.52,517.86,519.20,520.54,521.88,523.21,524.55,525.89,527.23,
+    528.57,529.91,531.25,532.59,533.93,535.27,536.61,537.95,539.29,540.62,541.96,543.30,
+    544.64,545.98,547.32,548.66,550.00,551.34,552.68,554.02,555.36,556.70,558.04,559.38,
+    560.71,562.05,563.39,564.73,566.07,567.41,568.75,570.09,571.43,572.77,574.11,575.45,
+    576.79,578.12,579.46,580.80,582.14,583.48,584.82,586.16,587.50,588.84,590.18,591.52,
+    592.86,594.20,595.54,596.88,598.21,599.55,600.89,602.23,603.57,604.91,606.25,607.59,
+    608.93,610.27,611.61,612.95,614.29,615.62,616.96,618.30,619.64,620.98,622.32,623.66,
+    625.00,626.34,627.68,629.02,630.36,631.70,633.04,634.38,635.71,637.05,638.39,639.73,
+    641.07,642.41,643.75,645.09,646.43,647.77,649.11,650.45,651.79,653.12,654.46,655.80,
+    657.14,658.48,659.82,661.16,662.50,663.84,665.18,666.52,667.86,669.20,670.54,671.88,
+    673.21,674.55,675.89,677.23,678.57,679.91,681.25,682.59,683.93,685.27,686.61,687.95,
+    689.29,690.62,691.96,693.30,694.64,695.98,697.32,698.66,700.00,701.34,702.68,704.02,
+    705.36,706.70,708.04,709.38,710.71,712.05,713.39,714.73,716.07,717.41,718.75,720.09,
+    721.43,722.77,724.11,725.45,726.79,728.12,729.46,730.80,732.14,733.48,734.82,736.16,
+    737.50,738.84,740.18,741.52,742.86,744.20,745.54,746.88,748.21,749.55,750.89,752.23,
+    753.57,754.91,756.25,757.59,758.93,760.27,761.61,762.95,764.29,765.62,766.96,768.30,
+    769.64,770.98,772.32,773.66,775.00,776.34,777.68,779.02,780.36,781.70,783.04,784.38,
+    785.71,787.05,788.39,789.73,791.07,792.41,793.75,795.09,796.43,797.77,799.11,800.45,
+    801.79,803.12,804.46,805.80,807.14,808.48,809.82,811.16,812.50,813.84,815.18,816.52,
+    817.86,819.20,820.54,821.88,823.21,824.55,825.89,827.23,828.57,829.91,831.25,832.59,
+    833.93,835.27,836.61,837.95,839.29,840.62,841.96,843.30,844.64,845.98,847.32,848.66,
+    850.00,851.34,852.68,854.02,855.36,856.70,858.04,859.38,860.71,862.05,863.39,864.73,
+    866.07,867.41,868.75,870.09,871.43,872.77,874.11,875.45,876.79,878.12,879.46,880.80,
+    882.14,883.48,884.82,886.16,887.50,888.84,890.18,891.52,892.86,894.20,895.54,896.88,
+    898.21,899.55,900.89,902.23,903.57,904.91,906.25,907.59,908.93,910.27,911.61,912.95,
+    914.29,915.62,916.96,918.30,919.64,920.98,922.32,923.66,925.00,926.34,927.68,929.02,
+    930.36,931.70,933.04,934.38,935.71,937.05,938.39,939.73,941.07,942.41,943.75,945.09,
+    946.43,947.77,949.11,950.45,951.79,953.12,954.46,955.80,957.14,958.48,959.82,961.16,
+    962.50,963.84,965.18,966.52,967.86,969.20,970.54,971.88,973.21,974.55,975.89,977.23,
+    978.57,979.91,981.25,982.59,983.93,985.27,986.61,987.95,989.29,990.62,991.96,993.30,
+    994.64,995.98,997.32,998.66], dtype=np.float32)
+
+
+        # Cache for indices returned by find_rgb_bands(lambda_vec)
+        self._rgb_band_idxs = None
+
+        # MATLAB default brightness (can be tuned)
+        self.rgb_brightness = 1.0
+
+
+        # load previous calibration from disk (if exists)
+        try:
+            out_dir = getattr(rig_settings, "OUTPUT_FOLDER", ".")
+            os.makedirs(out_dir, exist_ok=True)
+
+            w_cube, _, w_hdr = load_envi_cube_if_exists(out_dir, "white_calib_")
+            d_cube, _, d_hdr = load_envi_cube_if_exists(out_dir, "dark_calib_")
+
+            # Expect calibration saved as cube with lines >=1, samples=WIDTH, bands=B
+            if w_cube is not None:
+                # make white_ref as mean over lines and samples -> (bands,)
+                self.white_ref = w_cube.mean(axis=(0, 1)).astype(np.float32)
+                print(f"Loaded white calibration: {w_hdr}")
+
+            if d_cube is not None:
+                self.dark_ref = d_cube.mean(axis=(0, 1)).astype(np.float32)
+                print(f"Loaded dark calibration: {d_hdr}")
+
+        except Exception as e:
+            print(f"Calibration load skipped: {e}")
+
+
+
         # start camera and register callback
-        #self._start_sensor_and_callback()
+        # self._start_sensor_and_callback()
 
         # UI timer to update plot (main thread only)
         self.timer = QtCore.QTimer(self)
@@ -97,7 +433,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_tab_changed(self, index):
         # tab 1 (index=1) is the Setup tab for the Rig
-        self.current_tab = index # update the current tab index we are on (NOTE: there is probably a better pyQT way of getting this info)
+        self.current_tab = index  # update the current tab index we are on (NOTE: there is probably a better pyQT way of getting this info)
         if index == 1:
             self.update_comm_port_list()
 
@@ -107,7 +443,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.cmbBoxCommPortSelect_2.clear()  # Clear previous items
 
         # get the list of ports using the rig controller
-        ports = RIGController.list_ports(self=RIGController) 
+        ports = RIGController.list_ports(self=RIGController)
         if not ports:
             self.cmbBoxCommPortSelect.addItem("No ports found")
             self.cmbBoxCommPortSelect_2.addItem("No ports found")
@@ -144,7 +480,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.btnScan.clicked.connect(self.start_scan)
         # self.btnStop.clicked.connect(self.stop)
         self.btnReset.clicked.connect(self.reset_controller)
-    
+
+    def calcSpeedFromFPS(self, FPS=50):
+        speed = 0.0  # Speed in mm/min
+        fps = FPS  # frame rate for the camera to capture at
+        # This is `mm`
+        height = rig_settings.RIG_CAM_HEIGHT_OFFSET + rig_settings.RIG_CAM_HEIGHT
+        spatial_width = WIDTH
+
+        # Multiply by 60 to get speed in mm/min instead of mm/sec
+        fov_rad = math.radians(CAMERA_LENSE_FOV)
+        speed = 60 * fps * ((2 * height * math.tan(fov_rad / 2)) / spatial_width)
+        print(f"calculated speed from FPS: {speed}")
+
+        return speed
+
     def loading_settings(self):
         """
         Load settings from config/settings.yaml into rig_settings and populate UI fields.
@@ -244,25 +594,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     pass
 
             if hasattr(self, "cmbSpectralBin"):
-                set_combobox_to_value(self.cmbSpectralBin, getattr(rig_settings, "CAMERA_SPECTRAL_BIN", 1), "Spectral bin")
+                set_combobox_to_value(self.cmbSpectralBin, getattr(rig_settings, "CAMERA_SPECTRAL_BIN", 1),
+                                      "Spectral bin")
 
             if hasattr(self, "cmbSpatialBin"):
                 set_combobox_to_value(self.cmbSpatialBin, getattr(rig_settings, "CAMERA_SPATIAL_BIN", 1), "Spatial bin")
 
             if hasattr(self, "cmbCaptureMode"):
-                set_combobox_to_value(self.cmbCaptureMode, getattr(rig_settings, "CAMERA_CAPTURE_MODE", 1), "Capture mode")
+                set_combobox_to_value(self.cmbCaptureMode, getattr(rig_settings, "CAMERA_CAPTURE_MODE", 1),
+                                      "Capture mode")
 
         except Exception:
             pass
-    
+
     def update_settings(self):
         # Saves update and save setting to YAML file
-        
+
         self.update_camera_settings()
         self.update_rig_settings()
-    
+
     # saving rig controller scanning config to globally accessable python config file and yaml file
     def update_rig_settings(self):
+
         # Update rig_settings values from UI and save to YAML
         def update_txt_value(attr_name, txtbox):
             value = None
@@ -280,6 +633,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         update_txt_value("RIG_BED_START", self.txtBedStartPosition)
         update_txt_value("RIG_BED_END", self.txtBedEndPosition)
         update_txt_value("RIG_CAM_HEIGHT", self.txtCameraPosition)
+
+        if self.current_tab == 0:
+            # update rig speed based on FPS (Prioritising FPS caluculated Speed over user entered speed when on main tab)
+            rig_settings.RIG_SPEED = self.calcSpeedFromFPS(rig_settings.CAMERA_FRAME_RATE)
 
         # Build dict and save
         settings_to_save = {
@@ -302,6 +659,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print(f"rig bed start: {rig_settings.RIG_BED_START}")
         print(f"rig bed end: {rig_settings.RIG_BED_END}")
         print(f"rig cam height: {rig_settings.RIG_CAM_HEIGHT}")
+        print(f"settings updated to device")
 
     def update_camera_settings(self):
         # Read UI camera controls and save to YAML via save_settings()
@@ -419,20 +777,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             }
 
             save_settings(settings_to_save)
-            print(f"Saved camera settings: shutter={cam_shutter}, fr={frame_rate}, exp={exposure}, sb={spectral_bin}, spb={spatial_bin}, mode={capture_mode}, lines={line_count}, out={output_folder}")
+            print(
+                f"Saved camera settings: shutter={cam_shutter}, fr={frame_rate}, exp={exposure}, sb={spectral_bin}, spb={spatial_bin}, mode={capture_mode}, lines={line_count}, out={output_folder}")
         except Exception as e:
             print(f"Warning: failed to save camera settings: {e}")
-    
+
     # ===================
     # === RIG CODE ===
     # ===================
-    
+
     # connecting to selected COM port from dropdown list
     def connect_controller(self):
-        if self.current_tab == 0: # if we are on the camera connection tab
+        if self.current_tab == 0:  # if we are on the camera connection tab
             selected_index = self.cmbBoxCommPortSelect_2.currentIndex()
-            port_info = self.cmbBoxCommPortSelect_2.itemData(selected_index) 
-        else: # else we are on the rig control tab
+            port_info = self.cmbBoxCommPortSelect_2.itemData(selected_index)
+        else:  # else we are on the rig control tab
             selected_index = self.cmbBoxCommPortSelect.currentIndex()
             port_info = self.cmbBoxCommPortSelect.itemData(selected_index)
         if not port_info:
@@ -458,7 +817,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         QApplication.setOverrideCursor(Qt.WaitCursor)
         if self.rig_controller != None and self.rig_controller.is_connected():
             self.rig_controller.disconnect()
-            self.rig_controller = None # clear reference to object after disconnect
+            self.rig_controller = None  # clear reference to object after disconnect
             print("Status: Disconnected")
             self.btnRigConnect.setEnabled(True)
             self.btnRigDisconnect.setEnabled(False)
@@ -477,25 +836,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
 
         # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
-        y_pos = rig_settings.RIG_WHITE_CAL_POS_READ_ONLY # Position still needs calibrating
+        y_pos = rig_settings.RIG_WHITE_CAL_POS_READ_ONLY  # Position still needs calibrating
         self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
 
         # Move to Y axis position (strip location)
         success_y = self.rig_controller.move_axis('Y', y_pos)
-        
+
         # TODO: Move this homing to seperate thread process so that it is not blocking
         # Wait for moving with interruptible sleep
         print("Waiting for move to white calibration strip to complete...")
         start_time = time.time()
         while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY:
             pos = self.rig_controller.get_current_position()
-            if pos is not None and pos["Y"] == rig_settings.RIG_WHITE_CAL_POS_READ_ONLY and pos["Z"] == rig_settings.RIG_CAM_HEIGHT:
+            if pos is not None and pos["Y"] == rig_settings.RIG_WHITE_CAL_POS_READ_ONLY and pos[
+                "Z"] == rig_settings.RIG_CAM_HEIGHT:
                 break
             try:
                 self.msleep(100)  # Use QThread's msleep for better integration
             except:
                 time.sleep(0.1)
-            
+
         if success_y:
             print("Status: At white calibration strip")
         else:
@@ -509,14 +869,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
 
         # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
-        y_pos = rig_settings.RIG_BLACK_CAL_POS_READ_ONLY # Position still needs calibrating
+        y_pos = rig_settings.RIG_BLACK_CAL_POS_READ_ONLY  # Position still needs calibrating
         z_pos = 0.0
         self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
 
         # Move to Y axis position (strip location)
         success_y = self.rig_controller.move_axis('Y', y_pos)
         success_z = self.rig_controller.move_axis('Z', z_pos)
-        
+
         # TODO: Move this homing to seperate thread process so that it is not blocking
         # Wait for moving with interruptible sleep
         print("Waiting for move to white calibration strip to complete...")
@@ -529,7 +889,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.msleep(100)  # Use QThread's msleep for better integration
             except:
                 time.sleep(0.1)
-            
+
         if success_y:
             print("Status: At black calibration strip")
         else:
@@ -551,7 +911,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 print("Status: Homing failed")
         finally:
             pass
-    
+
     # Rig homing of carriage (camera)
     def home_carriage_clicked(self):
         if self.rig_controller != None and not self.rig_controller.is_connected():
@@ -568,7 +928,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 print("Status: Homing failed")
         finally:
             pass
-        
+
     # rig controller reset logic
     def reset_controller(self):
         if not self.rigcontroller.is_connected():
@@ -604,12 +964,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Keep strong reference so it won't be GC’ed
         self._callback_ref = self._onDataCallback
         self.specSensor.sensor.registerDataCallback(self._callback_ref)
-        
+
         # track success connection
         self.cam_connected = True
 
+        # update settings to camera
+        try:
+            self.updateSettingsToDevice()
+        except Exception as e:
+            print(f"Error: failed to update settings to device: {e}")
+
         # start acquisition
-        #self.specSensor.command('Acquisition.Start')
+        # self.specSensor.command('Acquisition.Start')
 
     def _reshape_line_from_bytes(self, pBuffer, nbytes):
         if nbytes % 2:
@@ -638,63 +1004,131 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         nFrameSize: C.c_int64,
                         nFrameNumber: C.c_int64,
                         pContext: C.c_void_p) -> None:
+        """
+        Updated: enqueue FULL hyperspectral line (WIDTH, bands).
+        RGB conversion happens in _drain_and_update_plot (UI thread).
+        """
         try:
             nbytes = int(nFrameSize)
             if nbytes <= 0:
                 return
+
             line16, bands = self._reshape_line_from_bytes(pBuffer, nbytes)
             if line16 is None:
                 return
-            self._bands_in_line = bands
-            if BAND_IDXS.max() >= bands:
-                return
 
-            rgb16 = line16[:, BAND_IDXS]  # (1024, 3) uint16
-            # print (rgb16)
-            # enqueue a COPY so we're safe after the SDK returns
+            self._bands_in_line = bands
+
+            # --- Determine current mode from globals ---
+            # NOTE: these are global flags set by the worker thread
+
+
+            if self.white_calibration_data:
+                mode = "white"
+            elif self.dark_calibration_data:
+                mode = "dark"
+            else:
+                mode = "scan"
+            #print(mode)
+            # If mode changed since last callback, finalize previous calibration
+            if self._prev_cal_mode is None:
+                self._prev_cal_mode = mode
+            elif mode != self._prev_cal_mode:
+                if self._prev_cal_mode == "white":
+                    self._finalize_and_save_calibration("white")
+                elif self._prev_cal_mode == "dark":
+                    self._finalize_and_save_calibration("dark")
+                self._prev_cal_mode = mode
+
+            # Collect based on mode
+            if mode == "white":
+                self.white_cal_lines.append(line16.copy())
+                # still show something on preview (optional)
+                line_for_display = line16
+
+            elif mode == "dark":
+                self.dark_cal_lines.append(line16.copy())
+                line_for_display = line16
+
+            else:
+                # scan data
+                # Apply ELM to scan lines if refs exist (store calibrated or raw as you prefer)
+                #white_cal_lines=np.asarray(self.dark_cal_lines)
+                #self.white_ref = white_cal_lines.mean(axis=(0, 1)).astype(np.float32)
+
+                #dark_cal_lines = np.asarray(self.dark_cal_lines)
+                #self.white_ref = dark_cal_lines.mean(axis=(0, 1)).astype(np.float32)
+                if self.apply_calibration:
+                    calibrated = self._apply_elm(line16)  # float32
+                    # For saving ENVI scan, you usually want calibrated float32. If you prefer raw, store line16 instead.
+                    self.hsi_lines.append(calibrated.copy())
+                    line_for_display = calibrated
+                else:
+                    self.hsi_lines.append(line16.copy())
+                    line_for_display = line16
+                # For preview, we want something displayable:
+
+
+            # enqueue COPY so safe after SDK returns
             try:
-                self.line_queue.put_nowait(rgb16.copy())
+                self.line_queue.put_nowait(line_for_display.copy())  # (WIDTH, bands)
             except Exception:
+                # drop oldest and retry
                 try:
                     self.line_queue.get_nowait()
                 except Empty:
                     pass
                 try:
-                    self.line_queue.put_nowait(rgb16.copy())
+                    self.line_queue.put_nowait(line_for_display.copy())
                 except Exception:
                     pass
 
             self._lines_rcvd += 1
         except Exception:
-            # never raise out of native callback thread
             return
 
     def _drain_and_update_plot(self):
         drained = 0
-        # write pointer for rolling buffer
         if not hasattr(self, "_write_row"):
             self._write_row = 0
 
         while True:
             try:
-                rgb16 = self.line_queue.get_nowait()
+                line16 = self.line_queue.get_nowait()  # now (WIDTH, bands)
             except Empty:
                 break
-            rgb8 = self._u16_to_u8(rgb16)  # (1024, 3) uint8
+
+            # Primary path: MATLAB-style RGB based on wavelength vector
+            if (self.lambda_vec is not None) and (len(self.lambda_vec) == line16.shape[1]):
+                if self._rgb_band_idxs is None:
+                    self._rgb_band_idxs = find_rgb_bands(self.lambda_vec)
+
+                rgb8 = make_rgb_line(line16, self.lambda_vec, brightness=self.rgb_brightness)  # (WIDTH,3) uint8
+
+            else:
+                # Fallback path (until lambda_vec is set): your old fixed band indices + percentile stretch
+                if BAND_IDXS.max() >= line16.shape[1]:
+                    continue
+                rgb16_3 = line16[:, BAND_IDXS]  # (WIDTH,3) uint16
+                rgb8 = self._u16_to_u8(rgb16_3)  # (WIDTH,3) uint8
+
             self.rgb_img[self._write_row, :, :] = rgb8
             self._write_row = (self._write_row + 1) % ROLLING_HEIGHT
             drained += 1
 
         if drained:
-            # rotate so newest line is at the bottom (scroll effect)
             wr = self._write_row
             view = np.vstack((self.rgb_img[wr:], self.rgb_img[:wr]))
             self.im.set_data(view)
-            # optional: show stats in window title or a label
+
+            if self._rgb_band_idxs is not None:
+                rgb_info = f"lambda RGB idxs {self._rgb_band_idxs.tolist()}"
+            else:
+                rgb_info = f"fixed RGB idxs {BAND_IDXS.tolist()}"
+
             self.ax.set_title(
-                f"HSI RGB bands {BAND_IDXS.tolist()} | "
-                f"lines: {self._lines_rcvd}  bands_in_line: {self._bands_in_line}  "
-                f"q: {self.line_queue.qsize()}"
+                f"{rgb_info} | lines: {self._lines_rcvd}  "
+                f"bands_in_line: {self._bands_in_line}  q: {self.line_queue.qsize()}"
             )
             self.canvas.draw_idle()
 
@@ -702,7 +1136,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnCameraConnect.setEnabled(False)
         self.btnCameraDisconnect.setEnabled(True)
 
-        QApplication.setOverrideCursor(Qt.WaitCursor) # provide user feedback that we are waiting for a process to finish via cursor wait icon
+        QApplication.setOverrideCursor(
+            Qt.WaitCursor)  # provide user feedback that we are waiting for a process to finish via cursor wait icon
         self._start_sensor_and_callback()
         QApplication.restoreOverrideCursor()
 
@@ -713,15 +1148,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # track camera connection
         self.cam_connected = False
 
-    def btnApplyAdjust_clicked(self):
+    def updateSettingsToDevice(self):
+        cam_frame_rate = str(getattr(rig_settings, "CAMERA_FRAME_RATE", ""))
+        # cam_exp_time = str(getattr(rig_settings, "EXPOSURE_TIME", ""))
+        cam_spat_bin = str(getattr(rig_settings, "CAMERA_SPATIAL_BIN", ""))
+        cam_spec_bin = str(getattr(rig_settings, "CAMERA_SPECTRAL_BIN", ""))
 
         self.btnCameraConnect.setEnabled(False)
         command_status, message = send_command('CONNECT')
-        command_status, message = send_command('FRAME_RATE,50')
-        command_status, message = send_command('EXPOSURE_TIME,20')
-        val=str(self.cmbSpectralBin.currentIndex())
-        command_status, message = send_command('SPECTRAL_BINNING,'+ str(self.cmbSpectralBin.currentIndex()))
-        command_status, message = send_command('SPATIAL_BINNING,' + str(self.cmbSpatialBin.currentIndex()))
+        command_status, message = send_command('FRAME_RATE,' + cam_frame_rate)
+        cam_exp_time = str((1 / (float(cam_frame_rate))) * 1000)+READOUT_TIME  # milliseconds
+        command_status, message = send_command('EXPOSURE_TIME' + cam_exp_time)
+        # val=str(self.cmbSpectralBin.currentIndex())
+        command_status, message = send_command(
+            'SPECTRAL_BINNING,' + cam_spec_bin)  # str(self.cmbSpectralBin.currentIndex()))
+        command_status, message = send_command(
+            'SPATIAL_BINNING,' + cam_spat_bin)  # str(self.cmbSpatialBin.currentIndex()))
+        return message
+
+    def btnApplyAdjust_clicked(self):
+        # update the setting first
+        self.update_settings()
+        # setting get values
+        message = self.updateSettingsToDevice()
+        # Update speed based on FPS
+        rig_settings.RIG_SPEED = self.calcSpeedFromFPS(rig_settings.CAMERA_FRAME_RATE)
 
         if message != 'OK':
             self.btnCameraConnect.setEnabled(True)
@@ -732,15 +1183,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.cam_connected == False:
             print("Status: Camera not connected")
             return
-        
+
         # check rig controller is connected
         if self.rig_controller == None or not self.rig_controller.is_connected():
             print("Status: Bed controller not connected")
             return
-        
+
         self.btnStartAcquire.setEnabled(False)
         self.btnStopAcquire.setEnabled(True)
-        
+
+        # NOTE: If user in on tab 0, then we will prefer the line count based end position calculation
+        # 1 line is Approx. 0.125mm distance
+        # TODO: Line count and it's derived end position for the scan bed are only saved when user hits `update setting` button
+        # TODO: get linecount from setting and not gui is better
+        # 25mm additional offset is added to make sure we get the request lines as a just in case (25mm = ~200 line)
+        line_count_end_pos = rig_settings.RIG_BED_START + (int(self.textEditFrameCount.toPlainText()) * 0.125) + 25
+        # check that we are not going past machine limits (max is 600mm)
+        if line_count_end_pos > 600:
+            # cap to max pos
+            line_count_end_pos = 600
+        rig_settings.RIG_BED_END = line_count_end_pos
+
         # Create worker thread
         self.scan_worker = ScanWorkerThread(
             main_window=self,
@@ -750,17 +1213,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             end_scan_pos=rig_settings.RIG_BED_END,
             scan_speed=rig_settings.RIG_SPEED,
         )
-        
+
         # Connect signals
         self.scan_worker.status_update.connect(self.on_scan_status_update)
         self.scan_worker.scan_complete.connect(self.on_scan_complete)
         self.scan_worker.error_occurred.connect(self.on_scan_error)
-        
+
         # NEW: Connect confirmation request signal
         self.scan_worker.request_confirmation.connect(self.show_confirmation_dialog)
-        
+
         # Start the thread
         self.scan_worker.start()
+
     @pyqtSlot(str)
     def show_confirmation_dialog(self, message):
         """
@@ -774,7 +1238,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes
         )
-        
+
         if reply == QMessageBox.Yes:
             # User clicked Yes - resume the worker
             self.scan_worker.resume()
@@ -785,24 +1249,89 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_scan_status_update(self, message):
         """Update status label with scan progress"""
         print(f"Status: {message}")
-        
+
     def on_scan_complete(self):
         """Handle scan completion"""
         self.btnStartAcquire.setEnabled(True)
         self.btnStopAcquire.setEnabled(False)
         self.specSensor.command('Acquisition.Stop')
         print("Status: Scan completed")
-        
+
+        # finalize any pending calibration capture before saving scan
+        try:
+            if self._prev_cal_mode == "white":
+                self._finalize_and_save_calibration("white")
+            elif self._prev_cal_mode == "dark":
+                self._finalize_and_save_calibration("dark")
+            self._prev_cal_mode = "scan"
+        except Exception:
+            pass
+
+
+        try:
+            if len(self.hsi_lines) == 0:
+                print("No hyperspectral lines collected; nothing to save.")
+                return
+
+            cube = np.stack(self.hsi_lines, axis=0)  # (lines, samples=WIDTH, bands)
+
+            # get textbox for output folder dir
+            rig_settings.OUTPUT_FOLDER = self.txtOutputFolderPath.text() # TODO: Make this so that the path is got from the saved config file, which is also needs updated via the gui in future development
+            out_dir = getattr(rig_settings, "OUTPUT_FOLDER", ".")
+            # out_dir = "C:\work\data"
+            print(out_dir)
+            os.makedirs(out_dir, exist_ok=True)
+
+            # choose a filename (timestamped)
+            ts = time.strftime("%Y%m%d_%H%M%S")
+            base_path = os.path.join(out_dir, f"scan_{ts}")
+
+            # wavelength vector must match bands
+            wavelength = self.lambda_vec
+            if wavelength is not None and len(wavelength) != cube.shape[2]:
+                print(f"Warning: lambda_vec length {len(wavelength)} != bands {cube.shape[2]}. "
+                      f"Saving without wavelength.")
+                wavelength = None
+
+            data_path, hdr_path = write_envi_bil(
+                base_path=base_path,
+                cube=cube.astype(np.float32, copy=False),  # typical sensor output
+                wavelength=wavelength,
+                description="University of Lincoln, Linescan HSI image (BIL)",
+                extra_header={
+                    "sensor type": "SpecSensor",
+                    "camera_frame_rate": getattr(rig_settings, "CAMERA_FRAME_RATE", ""),
+                    "exposure": getattr(rig_settings, "CAMERA_EXPOSURE", ""),
+                }
+            )
+            print(f"Saved ENVI: {data_path} and {hdr_path}")
+
+            # Explicitly drop large buffers ASAP
+            try:
+                del cube
+            except Exception:
+                pass
+
+            self._clear_memory_after_save(aggressive=True)
+
+
+        except Exception as e:
+            print(f"ENVI save failed: {e}")
+        finally:
+            # clear buffer for next scan
+            self.hsi_lines = []
+
+
         # Disconnect controller if it exists (NOTE: This should be user specified now, but there might be edge cases that might want this back)
         # if hasattr(self, 'scan_worker') and self.scan_worker.rig_controller:
         #     self.scan_worker.rig_controller.disconnect()
-            
+
     def on_scan_error(self, error_message):
         """Handle scan errors"""
         self.btnStartAcquire.setEnabled(True)
         self.btnStopAcquire.setEnabled(False)
         print(f"Error: {error_message}")
-        
+
         # Try to stop acquisition
         try:
             self.specSensor.command('Acquisition.Stop')
@@ -812,12 +1341,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def btnStopAcquire_clicked(self):
         self.btnStopAcquire.setEnabled(False)
         self.btnStartAcquire.setEnabled(True)
-        
+
         # Stop the worker thread if it exists
         if hasattr(self, 'scan_worker') and self.scan_worker.isRunning():
             self.scan_worker.stop()
             self.scan_worker.wait(2000)  # Wait up to 2 seconds for thread to finish
-            
+
         # Stop acquisition
         self.specSensor.command('Acquisition.Stop')
         print("Status: Stopped")
@@ -855,13 +1384,13 @@ class ScanWorkerThread(QThread):
     # Signal to request user confirmation
     request_confirmation = pyqtSignal(str)  # str is the message to display
 
-    def __init__(self, 
-                 main_window: MainWindow, 
-                 rig_controller: RIGController = None, # if None, then use the one in main_window 
-                 cam_height: float=0.0, 
-                 scan_speed: float=443.33, 
-                 init_pos: float=80.0, 
-                 end_scan_pos: float=650.0
+    def __init__(self,
+                 main_window: MainWindow,
+                 rig_controller: RIGController = None,  # if None, then use the one in main_window
+                 cam_height: float = 0.0,
+                 scan_speed: float = 443.33,
+                 init_pos: float = 80.0,
+                 end_scan_pos: float = 650.0
                  ):
         super().__init__()
         self.main_window = main_window
@@ -874,6 +1403,7 @@ class ScanWorkerThread(QThread):
         self.init_pos = init_pos
         self.scan_pos = end_scan_pos
         self._is_running = True
+        self.main_window.is_running = True
 
         # Pause control of the routine for getting user input when calibration is enabled
         self._paused = False
@@ -881,10 +1411,10 @@ class ScanWorkerThread(QThread):
         self._pause_condition = QWaitCondition()
         self._user_cancelled = False
 
-    
     def stop(self):
         """Stop the scan routine"""
         self._is_running = False
+        self.main_window.is_running = False
 
         # if needed, wake the thread in case it’s waiting
         with QMutexLocker(self._pause_mutex):
@@ -893,9 +1423,9 @@ class ScanWorkerThread(QThread):
 
         # check if we still have a controller that is connected first
         if self.rig_controller is not None and self.rig_controller.is_connected():
-            self.rig_controller.emergency_stop() # software e-stop the controller
-            self.rig_controller.disconnect() # disconnect from the controller
-            
+            self.rig_controller.emergency_stop()  # software e-stop the controller
+            self.rig_controller.disconnect()  # disconnect from the controller
+
             self.main_window.btnRigConnect.setEnabled(True)
             self.main_window.btnRigDisconnect.setEnabled(False)
             self.main_window.btnRigConnect_2.setEnabled(True)
@@ -908,7 +1438,7 @@ class ScanWorkerThread(QThread):
             self._paused = False
             self._user_cancelled = False
             self._pause_condition.wakeAll()
-    
+
     @pyqtSlot()
     def cancel(self):
         """Cancel after user rejection (No clicked)"""
@@ -919,44 +1449,44 @@ class ScanWorkerThread(QThread):
             self._pause_condition.wakeAll()
 
     def wait_for_confirmation(self, message):
-            """
-            Pause the thread and wait for user confirmation via GUI.
-            Returns True if user confirmed, False if cancelled.
-            """
-            with QMutexLocker(self._pause_mutex):
-                self._paused = True
-                self._user_cancelled = False
-                
-            # Emit signal to main thread to show dialog
-            self.request_confirmation.emit(message)
-            
-            # Wait for user response
-            with QMutexLocker(self._pause_mutex):
-                while self._paused and self._is_running:
-                    self._pause_condition.wait(self._pause_mutex)
-            
-            return not self._user_cancelled and self._is_running
-            
+        """
+        Pause the thread and wait for user confirmation via GUI.
+        Returns True if user confirmed, False if cancelled.
+        """
+        with QMutexLocker(self._pause_mutex):
+            self._paused = True
+            self._user_cancelled = False
+
+        # Emit signal to main thread to show dialog
+        self.request_confirmation.emit(message)
+
+        # Wait for user response
+        with QMutexLocker(self._pause_mutex):
+            while self._paused and self._is_running:
+                self._pause_condition.wait(self._pause_mutex)
+
+        return not self._user_cancelled and self._is_running
+
     def run(self):
         """This runs the scan routine on in a separate thread"""
         try:
             # rig_settings.RIG_TIMEOUT_READ_ONLY = 95
             # rig_settings.RIG_TRAVEL_SPEED_READ_ONLY = 6000
-            
+
             self.status_update.emit("Starting scan routine...")
-            
+
             if not self.rig_controller.serial_conn or not self.rig_controller.serial_conn.is_open:
                 self.error_occurred.emit("ERROR: Not connected to controller!")
                 return
-                
+
             # Step 1: Reset and home
             self.status_update.emit("Resetting controller and homing axes...")
             self.rig_controller.reset_controller()
             time.sleep(1)
-            
+
             response = self.rig_controller.home_axes()
             print(f"Homing responce during routine:\n {response}")
-            
+
             # Wait for homing with interruptible sleep
             self.status_update.emit("Waiting for homing to complete...")
             start_time = time.time()
@@ -965,22 +1495,22 @@ class ScanWorkerThread(QThread):
                 if pos is not None and pos["Y"] == 0.0 and pos["Z"] == 0.0:
                     break
                 self.msleep(100)  # Use QThread's msleep for better integration
-                
+
             if not self._is_running:
                 return
-            
+
             # Check to see if we need to move to calibration positions for black and white
             if self.main_window.chkCalibration.isChecked():
                 print(f"Moving to white calibration strip")
                 # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
-                y_pos = rig_settings.RIG_WHITE_CAL_POS_READ_ONLY # Position still needs calibrating
+                y_pos = rig_settings.RIG_WHITE_CAL_POS_READ_ONLY  # Position still needs calibrating
                 z_pos = 0
                 self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
 
                 # Move to Y axis position (strip location)
                 success_y = self.rig_controller.move_axis('Y', y_pos)
                 success_z = self.rig_controller.move_axis('Z', z_pos)
-                
+
                 # Wait for moving with interruptible sleep
                 print("Waiting for move to white calibration strip to complete...")
                 start_time = time.time()
@@ -989,7 +1519,7 @@ class ScanWorkerThread(QThread):
                     if pos is not None and pos["Y"] == rig_settings.RIG_WHITE_CAL_POS_READ_ONLY and pos["Z"] == z_pos:
                         break
                     self.msleep(100)  # Use QThread's msleep for better integration
-                    
+
                 if success_y and success_z:
                     print("Status: At white calibration strip")
                 else:
@@ -997,24 +1527,33 @@ class ScanWorkerThread(QThread):
 
                 # Pause: dialog box here to get user confirmation to continue routine
                 self.status_update.emit("At white calibration position. Waiting for user confirmation...")
-                
+
                 if not self.wait_for_confirmation("Calibration paused at white strip. Do you want to continue?"):
                     self.status_update.emit("Scan cancelled by user.")
                     return
-                
+
+                self.main_window.white_calibration_data = True
+                self.main_window.dark_calibration_data = False
+                # Start acquisition
+                self.status_update.emit("Starting camera acquisition...")
+                self.msleep(2000)
+                self.main_window.specSensor.command('Acquisition.Start')
+                self.msleep(2000)
+                self.main_window.specSensor.command('Acquisition.Stop')
+
                 self.status_update.emit("Continuing scan routine...")
 
                 print(f"Moving to black calibration strip")
 
                 # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
-                y_pos = rig_settings.RIG_BLACK_CAL_POS_READ_ONLY # Position still needs calibrating
+                y_pos = rig_settings.RIG_BLACK_CAL_POS_READ_ONLY  # Position still needs calibrating
                 z_pos = 0.0
                 self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
 
                 # Move to Y axis position (strip location)
                 success_y = self.rig_controller.move_axis('Y', y_pos)
                 success_z = self.rig_controller.move_axis('Z', z_pos)
-                
+
                 # TODO: Move this homing to seperate thread process so that it is not blocking
                 # Wait for moving with interruptible sleep
                 print("Waiting for move to black calibration strip to complete...")
@@ -1024,50 +1563,60 @@ class ScanWorkerThread(QThread):
                     if pos is not None and pos["Y"] == rig_settings.RIG_BLACK_CAL_POS_READ_ONLY and pos["Z"] == z_pos:
                         break
                     self.msleep(100)  # Use QThread's msleep for better integration
-                    
+
                 if success_y:
                     print("Status: At black calibration strip")
                 else:
                     print("Status: Move failed")
                 # Pause: dialog box here to get user confirmation to continue routine
                 self.status_update.emit("At black calibration position. Waiting for user confirmation...")
-                
+
                 if not self.wait_for_confirmation("Calibration paused at black strip. Do you want to continue?"):
                     self.status_update.emit("Scan cancelled by user.")
                     return
-                
+                self.main_window.white_calibration_data = False
+                self.main_window.dark_calibration_data = True
+
+                self.status_update.emit("Starting camera acquisition...")
+                self.msleep(2000)
+                self.main_window.specSensor.command('Acquisition.Start')
+                self.msleep(2000)
+                self.main_window.specSensor.command('Acquisition.Stop')
+
+                self.main_window.white_calibration_data = False
+                self.main_window.dark_calibration_data = False
+
                 self.status_update.emit("Continuing scan routine...")
-                
+
                 if not self._is_running:
                     return
-                
+
             # Move to initial position
             self.status_update.emit("Moving to initial position...")
             self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)
             self.rig_controller.move_axis("Y", self.init_pos)
             self.rig_controller.move_axis('Z', self.cam_height)
 
-            
             start_time = time.time()
             while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
                 pos = self.rig_controller.get_current_position()
                 if pos is not None and pos["Y"] == self.init_pos and pos["Z"] == self.cam_height:
                     break
                 self.msleep(100)
-                
+
             if not self._is_running:
                 return
-                
+
             # Start acquisition
             self.status_update.emit("Starting camera acquisition...")
             self.msleep(2000)
             self.main_window.specSensor.command('Acquisition.Start')
-            
+
             # Start scan
             self.status_update.emit(f"Scanning to position {self.scan_pos}...")
             self.rig_controller.set_feed_rate(self.scan_speed)
             self.rig_controller.move_axis("Y", self.scan_pos)
-            
+
             # Wait for scan completion
             start_time = time.time()
             while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
@@ -1075,26 +1624,26 @@ class ScanWorkerThread(QThread):
                 if pos is not None and pos["Y"] == self.scan_pos and pos["Z"] == self.cam_height:
                     break
                 self.msleep(100)
-                
+
             if not self._is_running:
                 return
-                
+
             # Return to initial position
             self.status_update.emit("Returning to initial position...")
             self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)
             self.rig_controller.move_axis("Y", self.init_pos)
             self.rig_controller.move_axis('Z', self.cam_height)
-            
+
             start_time = time.time()
             while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
                 pos = self.rig_controller.get_current_position()
                 if pos is not None and pos["Y"] == self.init_pos and pos["Z"] == self.cam_height:
                     break
                 self.msleep(100)
-                
+
             self.status_update.emit("Scan routine completed successfully!")
             self.scan_complete.emit()
-            
+
         except Exception as e:
             self.error_occurred.emit(f"Error during scan: {str(e)}")
 
