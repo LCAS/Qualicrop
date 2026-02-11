@@ -8,4 +8,4 @@
 # Created 6 Nov 2025
 
 
-python3 -m PyQt5.uic.pyuic -x ./main_window.ui -o main_window.py
+python3 -m PyQt5.uic.pyuic -xd ./main_window.ui -o main_window.py
