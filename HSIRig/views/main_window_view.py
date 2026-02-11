@@ -34,20 +34,18 @@ from scipy.io import savemat
 from envi_io import write_envi_bil, load_envi_cube_if_exists
 
 WIDTH = 1024  # Spatial width of the camera line
-CAMERA_LENSE_FOV = 38
+CAMERA_LENSE_FOV = 48
 BAND_IDXS = np.array([202, 120, 0], dtype=int)  # R,G,B (0-based)
 ROLLING_HEIGHT = 512
 QUEUE_MAX = 4096
 READOUT_TIME= 3 #milliseconds
 
+# 1 line is Approx. this pitch distance mm distance
+LINE_PITCH = 0.162198
+
 buffer_list = list()
 white_buffer = list()
 dark_buffer = list()
-
-
-
-
-
 
 def find_rgb_bands(lam: np.ndarray) -> np.ndarray:
     """
@@ -154,10 +152,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # track if camera is connected (NOTE: Might be better way to get this from SDK request)
         self.cam_connected = False
 
-        self.add_camera_preview_ui()
+
 
         # load Settings from YAML
         self.loading_settings()
+
+        self.add_camera_preview_ui()
 
         # rig controller object that should be used when connecting and commanding the rig
         self.rig_controller: RIGController = None
@@ -171,7 +171,86 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.white_calibration_data = False
         self.dark_calibration_data = False
 
-        self.apply_calibration=False
+        self.apply_calibration=True #False
+
+        self.acquisition_stopped=False
+        self.line_count=0
+
+    import glob
+
+    def _current_output_dir(self) -> str:
+        """Single source of truth for where to load/save calibration."""
+        try:
+            d = self.txtOutputFolderPath.text().strip()
+            if d:
+                return d
+        except Exception:
+            pass
+        return str(getattr(rig_settings, "OUTPUT_FOLDER", "."))
+
+    def _find_latest_envi_base(self, folder: str, prefix: str) -> str | None:
+        """
+        Find latest ENVI base path for files named like:
+          {prefix}{timestamp}.hdr + {prefix}{timestamp}.bil
+        Returns base path without extension, or None.
+        """
+        pattern = os.path.join(folder, f"{prefix}*.hdr")
+        hdrs = glob.glob(pattern)
+        if not hdrs:
+            return None
+
+        # sort by modified time (most robust even if timestamps collide)
+        hdrs.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+
+        for hdr in hdrs:
+            base = os.path.splitext(hdr)[0]  # strip .hdr
+            bil = base + ".bil"
+            if os.path.exists(bil):
+                return base
+        return None
+
+    def load_latest_calibration(self) -> None:
+        """
+        Load *latest* white/dark calibration from the output folder.
+        Updates self.white_ref / self.dark_ref.
+        Safe to call many times.
+        """
+        out_dir = self._current_output_dir()
+        os.makedirs(out_dir, exist_ok=True)
+
+        try:
+            # Prefer finding latest ourselves, then use your loader.
+            # If load_envi_cube_if_exists already finds latest, this still forces correct folder.
+            w_base = self._find_latest_envi_base(out_dir, "white_calib_")
+            d_base = self._find_latest_envi_base(out_dir, "dark_calib_")
+
+            # Fallback to your existing helper if needed
+            w_cube = d_cube = None
+            w_hdr = d_hdr = None
+
+            if w_base is not None:
+                # If your load_envi_cube_if_exists only supports (dir, prefix), keep this:
+                w_cube, _, w_hdr = load_envi_cube_if_exists(out_dir, "white_calib_")
+            else:
+                w_cube, _, w_hdr = load_envi_cube_if_exists(out_dir, "white_calib_")
+
+            if d_base is not None:
+                d_cube, _, d_hdr = load_envi_cube_if_exists(out_dir, "dark_calib_")
+            else:
+                d_cube, _, d_hdr = load_envi_cube_if_exists(out_dir, "dark_calib_")
+
+            if w_cube is not None:
+                # (lines, width, bands) -> mean over lines -> (width,bands) OR mean over both -> (bands,)
+                # Your ELM expects (width,bands), so use mean(axis=0)
+                self.white_ref = w_cube.mean(axis=0).astype(np.float32)
+                print(f"Loaded latest white calibration from: {w_hdr}")
+
+            if d_cube is not None:
+                self.dark_ref = d_cube.mean(axis=0).astype(np.float32)
+                print(f"Loaded latest dark calibration from: {d_hdr}")
+
+        except Exception as e:
+            print(f"Calibration load failed: {e}")
 
     def _drain_queue(self, q):
         """Remove all pending items so they don't keep memory alive."""
@@ -232,32 +311,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             except Exception:
                 pass
 
-    def _apply_elm(self, line16: np.ndarray, eps: float = 1e-4) -> np.ndarray:
-        """
-        Apply ELM calibration on a single line: (WIDTH, bands) uint16 -> float32.
-        calibrated = (raw - dark) / (white - dark + eps)
-        Returns float32 (WIDTH, bands). If refs missing, returns raw as float32.
-        """
-        if self.white_ref is None or self.dark_ref is None:
-            return line16.astype(np.float32)
+    def _apply_elm(self, line16: np.ndarray, eps_dn: float = 1.0) -> np.ndarray:
+            """
+            calibrated = (raw - dark) / (white - dark + eps)
+            If refs missing -> return raw uint16 (so preview uses raw rendering).
+            Returns float32 reflectance in [0,1] when calibrated.
+            """
+            if self.white_ref is None or self.dark_ref is None:
+                return line16  # IMPORTANT: keep as uint16
 
-        # broadcast refs (bands,) onto (WIDTH, bands)
-        #raw = (line16.astype(np.float32)/10000).astype(np.float32)
-        #self.white_ref=(self.white_ref/10000).astype(np.float32)
-        #self.dark_ref=(self.dark_ref/10000).astype(np.float32)
-        raw = line16.astype(np.float32) / 10000.0
-        white = self.white_ref.astype(np.float32) / 10000.0
-        dark = self.dark_ref.astype(np.float32) / 10000.0
+            raw = line16.astype(np.float32)
+            white = self.white_ref.astype(np.float32)
+            dark = self.dark_ref.astype(np.float32)
 
-        denom = white - dark
-        denom = np.maximum(denom, 1e-4)  # reflectance-scale epsilon
+            denom = white - dark
+            denom = np.maximum(denom, eps_dn)  # DN-scale epsilon
 
-        corr = (raw - dark) / denom
-        corr = np.clip(corr, 0.0, 1.0)
-        #denom = (self.white_ref - self.dark_ref).astype(np.float32)
-        #denom = denom + eps
-        #return (raw - self.dark_ref) / denom
-        return corr
+            corr = (raw - dark) / denom
+            corr = np.clip(corr, 0.0, 1.0).astype(np.float32)
+            return corr
 
     def _finalize_and_save_calibration(self, kind: str):
         """
@@ -284,7 +356,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     description="White calibration (BIL)",
                 )
                 # update reference (mean over lines and samples)
-                self.white_ref = cube.mean(axis=(0, 1)).astype(np.float32)
+                #self.white_ref = cube.mean(axis=(0, 1)).astype(np.float32)
+                self.white_ref = cube.mean(axis=0).astype(np.float32)
+                #self.dark_ref = cube.mean(axis=0).astype(np.float32)
                 print(f"Saved white calibration ENVI: {base_path}.bil/.hdr")
                 self.white_cal_lines = []  # clear after saving
 
@@ -490,7 +564,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Multiply by 60 to get speed in mm/min instead of mm/sec
         fov_rad = math.radians(CAMERA_LENSE_FOV)
-        speed = 60 * fps * ((2 * height * math.tan(fov_rad / 2)) / spatial_width)
+
+        speed = 60*fps * ((2 * height * math.tan(fov_rad / 2)) / spatial_width)
+        # speed_offset = 16.5
+        # speed = speed + speed_offset
+        # speed = 60 * fps * LINE_PITCH
         print(f"calculated speed from FPS: {speed}")
 
         return speed
@@ -728,13 +806,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         pass
 
             # line/frame count
-            line_count = getattr(rig_settings, "CAMERA_LINE_COUNT", 0)
+            self.line_count = getattr(rig_settings, "CAMERA_LINE_COUNT", 0)
             if hasattr(self, "textEditFrameCount"):
                 try:
-                    line_count = int(self.textEditFrameCount.toPlainText().strip())
+                    self.line_count = int(self.textEditFrameCount.toPlainText().strip())
                 except Exception:
                     try:
-                        line_count = int(self.textEditFrameCount.text().strip())
+                        self.line_count = int(self.textEditFrameCount.text().strip())
                     except Exception:
                         pass
 
@@ -753,7 +831,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             setattr(rig_settings, "CAMERA_SPECTRAL_BIN", spectral_bin)
             setattr(rig_settings, "CAMERA_SPATIAL_BIN", spatial_bin)
             setattr(rig_settings, "CAMERA_CAPTURE_MODE", capture_mode)
-            setattr(rig_settings, "CAMERA_LINE_COUNT", line_count)
+            setattr(rig_settings, "CAMERA_LINE_COUNT", self.line_count)
             setattr(rig_settings, "OUTPUT_FOLDER", output_folder)
 
             # Build dict to save (include rig keys so file is merged cleanly)
@@ -764,7 +842,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 "CAMERA_SPECTRAL_BIN": spectral_bin,
                 "CAMERA_SPATIAL_BIN": spatial_bin,
                 "CAMERA_CAPTURE_MODE": capture_mode,
-                "CAMERA_LINE_COUNT": line_count,
+                "CAMERA_LINE_COUNT": self.line_count,
                 "OUTPUT_FOLDER": output_folder,
                 "RIG_SPEED": getattr(rig_settings, "RIG_SPEED", None),
                 "RIG_BED_START": getattr(rig_settings, "RIG_BED_START", None),
@@ -778,7 +856,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             save_settings(settings_to_save)
             print(
-                f"Saved camera settings: shutter={cam_shutter}, fr={frame_rate}, exp={exposure}, sb={spectral_bin}, spb={spatial_bin}, mode={capture_mode}, lines={line_count}, out={output_folder}")
+                f"Saved camera settings: shutter={cam_shutter}, fr={frame_rate}, exp={exposure}, sb={spectral_bin}, spb={spatial_bin}, mode={capture_mode}, lines={self.line_count}, out={output_folder}")
         except Exception as e:
             print(f"Warning: failed to save camera settings: {e}")
 
@@ -1008,129 +1086,159 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Updated: enqueue FULL hyperspectral line (WIDTH, bands).
         RGB conversion happens in _drain_and_update_plot (UI thread).
         """
-        try:
-            nbytes = int(nFrameSize)
-            if nbytes <= 0:
-                return
-
-            line16, bands = self._reshape_line_from_bytes(pBuffer, nbytes)
-            if line16 is None:
-                return
-
-            self._bands_in_line = bands
-
-            # --- Determine current mode from globals ---
-            # NOTE: these are global flags set by the worker thread
-
-
-            if self.white_calibration_data:
-                mode = "white"
-            elif self.dark_calibration_data:
-                mode = "dark"
-            else:
-                mode = "scan"
-            #print(mode)
-            # If mode changed since last callback, finalize previous calibration
-            if self._prev_cal_mode is None:
-                self._prev_cal_mode = mode
-            elif mode != self._prev_cal_mode:
-                if self._prev_cal_mode == "white":
-                    self._finalize_and_save_calibration("white")
-                elif self._prev_cal_mode == "dark":
-                    self._finalize_and_save_calibration("dark")
-                self._prev_cal_mode = mode
-
-            # Collect based on mode
-            if mode == "white":
-                self.white_cal_lines.append(line16.copy())
-                # still show something on preview (optional)
-                line_for_display = line16
-
-            elif mode == "dark":
-                self.dark_cal_lines.append(line16.copy())
-                line_for_display = line16
-
-            else:
-                # scan data
-                # Apply ELM to scan lines if refs exist (store calibrated or raw as you prefer)
-                #white_cal_lines=np.asarray(self.dark_cal_lines)
-                #self.white_ref = white_cal_lines.mean(axis=(0, 1)).astype(np.float32)
-
-                #dark_cal_lines = np.asarray(self.dark_cal_lines)
-                #self.white_ref = dark_cal_lines.mean(axis=(0, 1)).astype(np.float32)
-                if self.apply_calibration:
-                    calibrated = self._apply_elm(line16)  # float32
-                    # For saving ENVI scan, you usually want calibrated float32. If you prefer raw, store line16 instead.
-                    self.hsi_lines.append(calibrated.copy())
-                    line_for_display = calibrated
-                else:
-                    self.hsi_lines.append(line16.copy())
-                    line_for_display = line16
-                # For preview, we want something displayable:
-
-
-            # enqueue COPY so safe after SDK returns
+        if self.acquisition_stopped==False:
             try:
-                self.line_queue.put_nowait(line_for_display.copy())  # (WIDTH, bands)
-            except Exception:
-                # drop oldest and retry
-                try:
-                    self.line_queue.get_nowait()
-                except Empty:
-                    pass
-                try:
-                    self.line_queue.put_nowait(line_for_display.copy())
-                except Exception:
-                    pass
+                nbytes = int(nFrameSize)
+                if nbytes <= 0:
+                    return
 
-            self._lines_rcvd += 1
-        except Exception:
-            return
+                line16, bands = self._reshape_line_from_bytes(pBuffer, nbytes)
+                if line16 is None:
+                    return
+
+                self._bands_in_line = bands
+
+                # --- Determine current mode from globals ---
+                # NOTE: these are global flags set by the worker thread
+
+
+                if self.white_calibration_data:
+                    mode = "white"
+                elif self.dark_calibration_data:
+                    mode = "dark"
+                else:
+                    mode = "scan"
+                #print(mode)
+                # If mode changed since last callback, finalize previous calibration
+                if self._prev_cal_mode is None:
+                    self._prev_cal_mode = mode
+                elif mode != self._prev_cal_mode:
+                    if self._prev_cal_mode == "white":
+                        self._finalize_and_save_calibration("white")
+                    elif self._prev_cal_mode == "dark":
+                        self._finalize_and_save_calibration("dark")
+                    self._prev_cal_mode = mode
+
+                # Collect based on mode
+                if mode == "white":
+                    self.white_cal_lines.append(line16.copy())
+                    # still show something on preview (optional)
+                    line_for_display = line16
+
+                elif mode == "dark":
+                    self.dark_cal_lines.append(line16.copy())
+                    line_for_display = line16
+
+                else:
+                    # scan data
+                    # Apply ELM to scan lines if refs exist (store calibrated or raw as you prefer)
+                    #white_cal_lines=np.asarray(self.dark_cal_lines)
+                    #self.white_ref = white_cal_lines.mean(axis=(0, 1)).astype(np.float32)
+
+                    #dark_cal_lines = np.asarray(self.dark_cal_lines)
+                    #self.white_ref = dark_cal_lines.mean(axis=(0, 1)).astype(np.float32)
+                    if self.apply_calibration:
+                        out = self._apply_elm(line16)
+                        if out.dtype == np.uint16 or out.dtype == np.uint32:
+                            # refs missing -> still raw
+                            self.hsi_lines.append(line16.copy())  # store raw (or skip storing)
+                            line_for_display = line16
+                        else:
+                            # calibrated reflectance
+                            self.hsi_lines.append(out.copy())  # store calibrated
+                            line_for_display = out
+                    else:
+                        self.hsi_lines.append(line16.copy())
+                        line_for_display = line16
+
+                # enqueue COPY so safe after SDK returns
+                try:
+                    self.line_queue.put_nowait(line_for_display.copy())  # (WIDTH, bands)
+                except Exception:
+                    # drop oldest and retry
+                    try:
+                        self.line_queue.get_nowait()
+                    except Empty:
+                        pass
+                    try:
+                        self.line_queue.put_nowait(line_for_display.copy())
+                    except Exception:
+                        pass
+
+                self._lines_rcvd += 1
+                if self._lines_rcvd == self.line_count:
+                    self.acquisition_stopped=True
+            except Exception:
+                return
+
+
+    def rgb_preview_from_reflectance_line(self,
+            refl_line: np.ndarray,  # (WIDTH, bands) float32, assumed 0..1
+            rgb_bands_0: np.ndarray,  # (3,) int, 0-based [R,G,B]
+            brightness: float = 1.0,
+    ) -> np.ndarray:
+        """
+        Stable RGB for ELM-calibrated reflectance lines.
+        No per-line normalization. Assumes refl is already in [0,1].
+        """
+        rgb = refl_line[:, rgb_bands_0].astype(np.float32, copy=False)  # (W,3)
+        rgb = brightness * rgb
+        rgb = np.clip(rgb, 0.0, 1.0)
+        return (rgb * 255.0 + 0.5).astype(np.uint8)
 
     def _drain_and_update_plot(self):
-        drained = 0
-        if not hasattr(self, "_write_row"):
-            self._write_row = 0
+        # if self.acquisition_stopped:
+            # print(self.acquisition_stopped)
+        if self.acquisition_stopped==False:
+            drained = 0
+            if not hasattr(self, "_write_row"):
+                self._write_row = 0
 
-        while True:
-            try:
-                line16 = self.line_queue.get_nowait()  # now (WIDTH, bands)
-            except Empty:
-                break
-
-            # Primary path: MATLAB-style RGB based on wavelength vector
-            if (self.lambda_vec is not None) and (len(self.lambda_vec) == line16.shape[1]):
-                if self._rgb_band_idxs is None:
+            # cache rgb band indices once
+            if (self.lambda_vec is not None) and (self._rgb_band_idxs is None):
+                if len(self.lambda_vec) == (self._bands_in_line or len(self.lambda_vec)):
                     self._rgb_band_idxs = find_rgb_bands(self.lambda_vec)
 
-                rgb8 = make_rgb_line(line16, self.lambda_vec, brightness=self.rgb_brightness)  # (WIDTH,3) uint8
+            while True:
+                try:
+                    line = self.line_queue.get_nowait()  # can be uint16 raw OR float32 calibrated
+                except Empty:
+                    break
 
-            else:
-                # Fallback path (until lambda_vec is set): your old fixed band indices + percentile stretch
-                if BAND_IDXS.max() >= line16.shape[1]:
-                    continue
-                rgb16_3 = line16[:, BAND_IDXS]  # (WIDTH,3) uint16
-                rgb8 = self._u16_to_u8(rgb16_3)  # (WIDTH,3) uint8
+                # If you queued calibrated lines when apply_calibration=True, then line is reflectance already.
+                # If not calibrated, you can either:
+                #   a) show raw with percentile stretch (your old way), OR
+                #   b) apply ELM here for preview only.
+                if line.dtype != np.uint16 and line.dtype != np.uint32:
+                    # assume calibrated reflectance float line: (WIDTH,bands) in [0,1]
+                    if self._rgb_band_idxs is not None:
+                        rgb8 = self.rgb_preview_from_reflectance_line(
+                            line, self._rgb_band_idxs, brightness=self.rgb_brightness
+                        )
+                    else:
+                        # fallback if no wavelength vector
+                        rgb16_3 = line[:, BAND_IDXS]
+                        rgb8 = np.clip(rgb16_3 * 255.0, 0, 255).astype(np.uint8)
+                else:
+                    # raw path (no calibration): keep your old preview method
+                    if BAND_IDXS.max() >= line.shape[1]:
+                        continue
+                    rgb16_3 = line[:, BAND_IDXS]
+                    rgb8 = self._u16_to_u8(rgb16_3)
 
-            self.rgb_img[self._write_row, :, :] = rgb8
-            self._write_row = (self._write_row + 1) % ROLLING_HEIGHT
-            drained += 1
+                self.rgb_img[self._write_row, :, :] = rgb8
+                self._write_row = (self._write_row + 1) % ROLLING_HEIGHT
+                drained += 1
 
-        if drained:
-            wr = self._write_row
-            view = np.vstack((self.rgb_img[wr:], self.rgb_img[:wr]))
-            self.im.set_data(view)
-
-            if self._rgb_band_idxs is not None:
-                rgb_info = f"lambda RGB idxs {self._rgb_band_idxs.tolist()}"
-            else:
-                rgb_info = f"fixed RGB idxs {BAND_IDXS.tolist()}"
-
-            self.ax.set_title(
-                f"{rgb_info} | lines: {self._lines_rcvd}  "
-                f"bands_in_line: {self._bands_in_line}  q: {self.line_queue.qsize()}"
-            )
-            self.canvas.draw_idle()
+            if drained:
+                wr = self._write_row
+                view = np.vstack((self.rgb_img[wr:], self.rgb_img[:wr]))
+                self.im.set_data(view)
+                self.ax.set_title(
+                    f"RGB idxs {self._rgb_band_idxs.tolist() if self._rgb_band_idxs is not None else BAND_IDXS.tolist()} "
+                    f"| lines: {self._lines_rcvd} bands: {self._bands_in_line} q: {self.line_queue.qsize()}"
+                )
+                self.canvas.draw_idle()
 
     def btnCameraConnect_clicked(self):
         self.btnCameraConnect.setEnabled(False)
@@ -1157,7 +1265,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnCameraConnect.setEnabled(False)
         command_status, message = send_command('CONNECT')
         command_status, message = send_command('FRAME_RATE,' + cam_frame_rate)
-        cam_exp_time = str((1 / (float(cam_frame_rate))) * 1000)+READOUT_TIME  # milliseconds
+        cam_exp_time = str((1 / (float(cam_frame_rate))) * 1000+READOUT_TIME)  # milliseconds
         command_status, message = send_command('EXPOSURE_TIME' + cam_exp_time)
         # val=str(self.cmbSpectralBin.currentIndex())
         command_status, message = send_command(
@@ -1191,18 +1299,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.btnStartAcquire.setEnabled(False)
         self.btnStopAcquire.setEnabled(True)
-
+        self.load_latest_calibration()
         # NOTE: If user in on tab 0, then we will prefer the line count based end position calculation
-        # 1 line is Approx. 0.125mm distance
+        # 1 line is Approx. 0.125mm distance (wrong)
+        # 1 line is Approx. 0.16369mm distance (wrong)
         # TODO: Line count and it's derived end position for the scan bed are only saved when user hits `update setting` button
         # TODO: get linecount from setting and not gui is better
         # 25mm additional offset is added to make sure we get the request lines as a just in case (25mm = ~200 line)
-        line_count_end_pos = rig_settings.RIG_BED_START + (int(self.textEditFrameCount.toPlainText()) * 0.125) + 25
+        line_count_end_pos = rig_settings.RIG_BED_START + (int(self.textEditFrameCount.toPlainText()) * LINE_PITCH) # + 25
+        print(f"end pre-round: {line_count_end_pos}")
+        line_count_end_pos = round(line_count_end_pos, 2)
+        print(f"end post-round: {line_count_end_pos}")
         # check that we are not going past machine limits (max is 600mm)
         if line_count_end_pos > 600:
             # cap to max pos
             line_count_end_pos = 600
         rig_settings.RIG_BED_END = line_count_end_pos
+        self.acquisition_stopped=False
 
         # Create worker thread
         self.scan_worker = ScanWorkerThread(
@@ -1254,6 +1367,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """Handle scan completion"""
         self.btnStartAcquire.setEnabled(True)
         self.btnStopAcquire.setEnabled(False)
+        self.acquisition_stopped = True
         self.specSensor.command('Acquisition.Stop')
         print("Status: Scan completed")
 
@@ -1293,18 +1407,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                       f"Saving without wavelength.")
                 wavelength = None
 
-            data_path, hdr_path = write_envi_bil(
-                base_path=base_path,
-                cube=cube.astype(np.float32, copy=False),  # typical sensor output
-                wavelength=wavelength,
-                description="University of Lincoln, Linescan HSI image (BIL)",
-                extra_header={
-                    "sensor type": "SpecSensor",
-                    "camera_frame_rate": getattr(rig_settings, "CAMERA_FRAME_RATE", ""),
-                    "exposure": getattr(rig_settings, "CAMERA_EXPOSURE", ""),
-                }
-            )
-            print(f"Saved ENVI: {data_path} and {hdr_path}")
+            # data_path, hdr_path = write_envi_bil(
+            #     base_path=base_path,
+            #     cube=cube.astype(np.float32, copy=False),  # typical sensor output
+            #     wavelength=wavelength,
+            #     description="University of Lincoln, Linescan HSI image (BIL)",
+            #     extra_header={
+            #         "sensor type": "SpecSensor",
+            #         "camera_frame_rate": getattr(rig_settings, "CAMERA_FRAME_RATE", ""),
+            #         "exposure": getattr(rig_settings, "CAMERA_EXPOSURE", ""),
+            #     }
+            # )
+            # print(f"Saved ENVI: {data_path} and {hdr_path}")
 
             # Explicitly drop large buffers ASAP
             try:
@@ -1504,7 +1618,7 @@ class ScanWorkerThread(QThread):
                 print(f"Moving to white calibration strip")
                 # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
                 y_pos = rig_settings.RIG_WHITE_CAL_POS_READ_ONLY  # Position still needs calibrating
-                z_pos = 0
+                z_pos = self.cam_height
                 self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
 
                 # Move to Y axis position (strip location)
@@ -1547,7 +1661,7 @@ class ScanWorkerThread(QThread):
 
                 # NOTE: You may need to update the Y/Z positions for your strip in rig_settings.py if incorrect
                 y_pos = rig_settings.RIG_BLACK_CAL_POS_READ_ONLY  # Position still needs calibrating
-                z_pos = 0.0
+                z_pos = self.cam_height
                 self.rig_controller.set_feed_rate(rig_settings.RIG_TRAVEL_SPEED_READ_ONLY)  # Set feedrate in mm/min
 
                 # Move to Y axis position (strip location)
@@ -1621,12 +1735,17 @@ class ScanWorkerThread(QThread):
             start_time = time.time()
             while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
                 pos = self.rig_controller.get_current_position()
-                if pos is not None and pos["Y"] == self.scan_pos and pos["Z"] == self.cam_height:
+                print(f'end postion move - current Pos Y: {pos["Y"]}')
+                if pos is not None and pos["Y"] >= self.scan_pos and pos["Z"] == self.cam_height:
                     break
                 self.msleep(100)
 
             if not self._is_running:
                 return
+
+            self.status_update.emit("Scan routine completed successfully!")
+            self.scan_complete.emit()
+            # self.msleep(1000)
 
             # Return to initial position
             self.status_update.emit("Returning to initial position...")
@@ -1641,8 +1760,6 @@ class ScanWorkerThread(QThread):
                     break
                 self.msleep(100)
 
-            self.status_update.emit("Scan routine completed successfully!")
-            self.scan_complete.emit()
 
         except Exception as e:
             self.error_occurred.emit(f"Error during scan: {str(e)}")

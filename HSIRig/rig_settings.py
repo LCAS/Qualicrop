@@ -20,13 +20,13 @@ RIG_BED_END = 600.0
 
 # Rig camera height position
 RIG_CAM_HEIGHT = 0.0
-RIG_CAM_HEIGHT_OFFSET = 200.0 # This is the distance from surface of bed (in `mm` and the camera lense when camera is at 0 (at the lowest positions)
+RIG_CAM_HEIGHT_OFFSET = 80.0 # This is the distance from surface of bed (in `mm` and the camera lense when camera is at 0 (at the lowest positions)
 
 # =========================
 # ==== READ-ONLY VALUES====
 # =========================
 
-RIG_TRAVEL_SPEED_READ_ONLY = 6000
+RIG_TRAVEL_SPEED_READ_ONLY = 5000
 RIG_TIMEOUT_READ_ONLY = 95 # timeout in seconds
 RIG_WHITE_CAL_POS_READ_ONLY = 250.0 # TODO: Check Value
 RIG_BLACK_CAL_POS_READ_ONLY = 260.0 # TODO: Check Value
@@ -38,8 +38,8 @@ RIG_BLACK_CAL_POS_READ_ONLY = 260.0 # TODO: Check Value
 # Shutter: "Open" or "Close"
 CAMERA_SHUTTER = "Open"
 # Frame rate and exposure defaults
-CAMERA_FRAME_RATE = 50.0
-CAMERA_EXPOSURE = 20.0
+CAMERA_FRAME_RATE = 60
+CAMERA_EXPOSURE = 50.0
 # Binning and modes
 CAMERA_SPECTRAL_BIN = 1
 CAMERA_SPATIAL_BIN = 1
