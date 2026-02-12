@@ -1334,12 +1334,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 1 line is Approx. 0.16369mm distance (wrong)
         # TODO: Line count and it's derived end position for the scan bed are only saved when user hits `update setting` button
         # TODO: get linecount from setting and not gui is better
+
         # calculated what 1 line is in mm based on the scanning setup
         height = rig_settings.RIG_CAM_HEIGHT_OFFSET + rig_settings.RIG_CAM_HEIGHT
-        LINE_PITCH = (2 * height * math.tan(math.radians(CAMERA_LENSE_FOV) / 2)) / WIDTH
+        object_length = (0.6842 * height) + 21.368
+        actual_pitch = object_length / WIDTH
+        # LINE_PITCH = (2 * height * math.tan(math.radians(CAMERA_LENSE_FOV) / 2)) / WIDTH
         print(f"calculated line_pitch from setup: {LINE_PITCH}")
         # 25mm additional offset is added to make sure we get the request lines as a just in case (25mm = ~200 line)
-        line_count_end_pos = rig_settings.RIG_BED_START + (int(self.textEditFrameCount.toPlainText()) * LINE_PITCH) # + 25
+        # line_count_end_pos = rig_settings.RIG_BED_START + (int(self.textEditFrameCount.toPlainText()) * LINE_PITCH) # + 25
+        line_count_end_pos = rig_settings.RIG_BED_START + (int(self.textEditFrameCount.toPlainText()) * actual_pitch) # + 25
         print(f"end pre-round: {line_count_end_pos}")
         line_count_end_pos = round(line_count_end_pos, 2)
         print(f"end post-round: {line_count_end_pos}")
