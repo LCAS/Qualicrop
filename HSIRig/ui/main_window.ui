@@ -85,9 +85,9 @@
       <widget class="QPushButton" name="btnCameraConnect">
        <property name="geometry">
         <rect>
-         <x>180</x>
+         <x>200</x>
          <y>60</y>
-         <width>111</width>
+         <width>91</width>
          <height>32</height>
         </rect>
        </property>
@@ -163,7 +163,7 @@
         <enum>Qt::RightToLeft</enum>
        </property>
        <property name="text">
-        <string>Calibration:   </string>
+        <string>Calibration:      </string>
        </property>
       </widget>
       <widget class="QPushButton" name="btnRigDisconnect_2">
@@ -172,9 +172,9 @@
        </property>
        <property name="geometry">
         <rect>
-         <x>290</x>
+         <x>300</x>
          <y>190</y>
-         <width>101</width>
+         <width>91</width>
          <height>32</height>
         </rect>
        </property>
@@ -197,9 +197,9 @@
       <widget class="QPushButton" name="btnRigConnect_2">
        <property name="geometry">
         <rect>
-         <x>180</x>
+         <x>200</x>
          <y>190</y>
-         <width>101</width>
+         <width>91</width>
          <height>32</height>
         </rect>
        </property>
@@ -272,6 +272,22 @@
        </property>
        <property name="checked">
         <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="chkCalibration_2">
+       <property name="geometry">
+        <rect>
+         <x>7</x>
+         <y>190</y>
+         <width>160</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="layoutDirection">
+        <enum>Qt::RightToLeft</enum>
+       </property>
+       <property name="text">
+        <string>Skip Homing:      </string>
        </property>
       </widget>
      </widget>
@@ -970,6 +986,7 @@
        </property>
        <property name="font">
         <font>
+         <weight>75</weight>
          <bold>true</bold>
          <underline>true</underline>
         </font>
@@ -992,6 +1009,7 @@
        </property>
        <property name="font">
         <font>
+         <weight>75</weight>
          <bold>true</bold>
          <underline>true</underline>
         </font>
@@ -1321,7 +1339,7 @@
      <x>0</x>
      <y>0</y>
      <width>1459</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>
