@@ -26,7 +26,7 @@ RIG_CAM_HEIGHT_OFFSET = 80.0 # This is the distance from surface of bed (in `mm`
 # ==== READ-ONLY VALUES====
 # =========================
 
-RIG_TRAVEL_SPEED_READ_ONLY = 5000
+RIG_TRAVEL_SPEED_READ_ONLY = 3000
 RIG_TIMEOUT_READ_ONLY = 95 # timeout in seconds
 RIG_WHITE_CAL_POS_READ_ONLY = 250.0 # TODO: Check Value
 RIG_BLACK_CAL_POS_READ_ONLY = 260.0 # TODO: Check Value
