@@ -13,8 +13,8 @@
 #   if on windows use `GIT Bash` terminal to run this or WSL
 
 # Define filenames
-UI_FILE="./main_window.ui"
-OUTPUT_FILE="main_window.py"
+UI_FILE="./ui/main_window.ui"
+OUTPUT_FILE="./ui/main_window.py"
 
 # Detect Operating System
 # Windows (Git Bash/MINGW) identifies as 'MSYS' or 'MINGW'
