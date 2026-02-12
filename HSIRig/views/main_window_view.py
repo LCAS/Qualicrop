@@ -16,6 +16,7 @@ from controllers.rig_controller import RIGController
 import rig_settings
 
 from utility import load_settings, save_settings
+import glob
 import gc
 import sys
 import ctypes as C
@@ -34,14 +35,14 @@ from scipy.io import savemat
 from envi_io import write_envi_bil, load_envi_cube_if_exists
 
 WIDTH = 1024  # Spatial width of the camera line
-CAMERA_LENSE_FOV = 48
+CAMERA_LENSE_FOV = 38.0
 BAND_IDXS = np.array([202, 120, 0], dtype=int)  # R,G,B (0-based)
 ROLLING_HEIGHT = 512
 QUEUE_MAX = 4096
-READOUT_TIME= 3 #milliseconds
+READOUT_TIME= 0.09 #milliseconds (this overwritten by query camera)
 
 # 1 line is Approx. this pitch distance mm distance
-LINE_PITCH = 0.162198
+LINE_PITCH = 0 # this is calculated later via the equation: (2 * height * math.tan(CAMERA_LENSE_FOV / 2)) / WIDTH
 
 buffer_list = list()
 white_buffer = list()
@@ -176,7 +177,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.acquisition_stopped=False
         self.line_count=0
 
-    import glob
+
 
     def _current_output_dir(self) -> str:
         """Single source of truth for where to load/save calibration."""
@@ -555,20 +556,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.btnStop.clicked.connect(self.stop)
         self.btnReset.clicked.connect(self.reset_controller)
 
+    # def calcSpeedFromFPS(self, FPS=50):
+    #     speed = 0.0  # Speed in mm/min
+    #     fps = FPS  # frame rate for the camera to capture at
+    #     # This is `mm`
+    #     height = rig_settings.RIG_CAM_HEIGHT_OFFSET + rig_settings.RIG_CAM_HEIGHT
+    #     spatial_width = WIDTH
+
+    #     # Multiply by 60 to get speed in mm/min instead of mm/sec
+    #     fov_rad = math.radians(CAMERA_LENSE_FOV)
+
+    #     speed = 60*fps * ((2 * height * math.tan(fov_rad / 2)) / spatial_width)
+    #     # speed_offset = 16.5
+    #     # speed = speed + speed_offset
+    #     # speed = 60 * fps * LINE_PITCH
+    #     print(f"calculated speed from FPS: {speed}")
+
+    #     return speed
     def calcSpeedFromFPS(self, FPS=50):
-        speed = 0.0  # Speed in mm/min
-        fps = FPS  # frame rate for the camera to capture at
         # This is `mm`
         height = rig_settings.RIG_CAM_HEIGHT_OFFSET + rig_settings.RIG_CAM_HEIGHT
-        spatial_width = WIDTH
 
-        # Multiply by 60 to get speed in mm/min instead of mm/sec
-        fov_rad = math.radians(CAMERA_LENSE_FOV)
+        object_length = (0.6842 * height) + 21.368
 
-        speed = 60*fps * ((2 * height * math.tan(fov_rad / 2)) / spatial_width)
-        # speed_offset = 16.5
-        # speed = speed + speed_offset
-        # speed = 60 * fps * LINE_PITCH
+        actual_pitch = object_length / WIDTH
+
+        speed = 60 * FPS * actual_pitch
         print(f"calculated speed from FPS: {speed}")
 
         return speed
@@ -1186,6 +1199,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         rgb = np.clip(rgb, 0.0, 1.0)
         return (rgb * 255.0 + 0.5).astype(np.uint8)
 
+
+
     def _drain_and_update_plot(self):
         # if self.acquisition_stopped:
             # print(self.acquisition_stopped)
@@ -1265,18 +1280,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btnCameraConnect.setEnabled(False)
         command_status, message = send_command('CONNECT')
         command_status, message = send_command('FRAME_RATE,' + cam_frame_rate)
-        cam_exp_time = str((1 / (float(cam_frame_rate))) * 1000+READOUT_TIME)  # milliseconds
-        command_status, message = send_command('EXPOSURE_TIME' + cam_exp_time)
+
+        READOUT_TIME = self.specSensor.getfloat("Camera.Image.ReadoutTime")[0]
+        print(f"readout: {READOUT_TIME}")
+        # cam_exp_time = str((1 / (float(cam_frame_rate))) * 1000+READOUT_TIME)  # milliseconds
+        cam_exp_time = (1000 / (float(cam_frame_rate))) - READOUT_TIME  # milliseconds
+        print(f"cam exposure calc: {cam_exp_time}")
+        # command_status, message = send_command('EXPOSURE_TIME' + cam_exp_time)
+        self.specSensor.setfloat("Camera.ExposureTime", cam_exp_time)
+        exp_time = self.specSensor.getfloat("Camera.ExposureTime")
+        print(f"Exposure time: {exp_time}")
+
         # val=str(self.cmbSpectralBin.currentIndex())
         command_status, message = send_command(
             'SPECTRAL_BINNING,' + cam_spec_bin)  # str(self.cmbSpectralBin.currentIndex()))
         command_status, message = send_command(
             'SPATIAL_BINNING,' + cam_spat_bin)  # str(self.cmbSpatialBin.currentIndex()))
+        
+        self.specSensor.setbool("Camera.Preprocessing.Enabled", True)
+        self.specSensor.setbool("Camera.AutoNUC", True)
+
         return message
 
     def btnApplyAdjust_clicked(self):
         # update the setting first
         self.update_settings()
+
         # setting get values
         message = self.updateSettingsToDevice()
         # Update speed based on FPS
@@ -1305,15 +1334,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 1 line is Approx. 0.16369mm distance (wrong)
         # TODO: Line count and it's derived end position for the scan bed are only saved when user hits `update setting` button
         # TODO: get linecount from setting and not gui is better
+        # calculated what 1 line is in mm based on the scanning setup
+        height = rig_settings.RIG_CAM_HEIGHT_OFFSET + rig_settings.RIG_CAM_HEIGHT
+        LINE_PITCH = (2 * height * math.tan(math.radians(CAMERA_LENSE_FOV) / 2)) / WIDTH
+        print(f"calculated line_pitch from setup: {LINE_PITCH}")
         # 25mm additional offset is added to make sure we get the request lines as a just in case (25mm = ~200 line)
         line_count_end_pos = rig_settings.RIG_BED_START + (int(self.textEditFrameCount.toPlainText()) * LINE_PITCH) # + 25
         print(f"end pre-round: {line_count_end_pos}")
         line_count_end_pos = round(line_count_end_pos, 2)
         print(f"end post-round: {line_count_end_pos}")
+
+        # check line count is valid
+        if line_count_end_pos < 0:
+            self.btnStartAcquire.setEnabled(True)
+            self.btnStopAcquire.setEnabled(False)
+            print(f"ERROR: end position calculated as less than 0.")
+            return
         # check that we are not going past machine limits (max is 600mm)
         if line_count_end_pos > 600:
             # cap to max pos
             line_count_end_pos = 600
+
         rig_settings.RIG_BED_END = line_count_end_pos
         self.acquisition_stopped=False
 
@@ -1407,18 +1448,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                       f"Saving without wavelength.")
                 wavelength = None
 
-            # data_path, hdr_path = write_envi_bil(
-            #     base_path=base_path,
-            #     cube=cube.astype(np.float32, copy=False),  # typical sensor output
-            #     wavelength=wavelength,
-            #     description="University of Lincoln, Linescan HSI image (BIL)",
-            #     extra_header={
-            #         "sensor type": "SpecSensor",
-            #         "camera_frame_rate": getattr(rig_settings, "CAMERA_FRAME_RATE", ""),
-            #         "exposure": getattr(rig_settings, "CAMERA_EXPOSURE", ""),
-            #     }
-            # )
-            # print(f"Saved ENVI: {data_path} and {hdr_path}")
+            if self.chkSaveToFile.isChecked():
+                data_path, hdr_path = write_envi_bil(
+                    base_path=base_path,
+                    cube=cube.astype(np.float32, copy=False),  # typical sensor output
+                    wavelength=wavelength,
+                    description="University of Lincoln, Linescan HSI image (BIL)",
+                    extra_header={
+                        "sensor type": "SpecSensor",
+                        "camera_frame_rate": getattr(rig_settings, "CAMERA_FRAME_RATE", ""),
+                        "exposure": getattr(rig_settings, "CAMERA_EXPOSURE", ""),
+                    }
+                )
+                print(f"Saved ENVI: {data_path} and {hdr_path}")
 
             # Explicitly drop large buffers ASAP
             try:
@@ -1699,6 +1741,8 @@ class ScanWorkerThread(QThread):
                 if not self.wait_for_confirmation("Calibration paused at black strip. Do you want to continue?"):
                     self.status_update.emit("Scan cancelled by user.")
                     return
+                self.main_window.specSensor.setbool("Camera.Shutter.IsToggle", False)
+
                 self.main_window.white_calibration_data = False
                 self.main_window.dark_calibration_data = True
 
@@ -1710,6 +1754,7 @@ class ScanWorkerThread(QThread):
 
                 self.main_window.white_calibration_data = False
                 self.main_window.dark_calibration_data = False
+                self.main_window.specSensor.setbool("Camera.Shutter.IsToggle", True)
 
                 self.status_update.emit("Continuing scan routine...")
 
