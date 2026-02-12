@@ -1581,6 +1581,24 @@ class ScanWorkerThread(QThread):
 
         return not self._user_cancelled and self._is_running
 
+    def home(self):
+        # Step 1: Reset and home
+        self.status_update.emit("Resetting controller and homing axes...")
+        self.rig_controller.reset_controller()
+        time.sleep(1)
+
+        response = self.rig_controller.home_axes()
+        print(f"Homing responce during routine:\n {response}")
+
+        # Wait for homing with interruptible sleep
+        self.status_update.emit("Waiting for homing to complete...")
+        start_time = time.time()
+        while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
+            pos = self.rig_controller.get_current_position()
+            if pos is not None and pos["Y"] == 0.0 and pos["Z"] == 0.0:
+                break
+            self.msleep(100)  # Use QThread's msleep for better integration
+
     def run(self):
         """This runs the scan routine on in a separate thread"""
         try:
@@ -1593,22 +1611,16 @@ class ScanWorkerThread(QThread):
                 self.error_occurred.emit("ERROR: Not connected to controller!")
                 return
 
-            # Step 1: Reset and home
-            self.status_update.emit("Resetting controller and homing axes...")
-            self.rig_controller.reset_controller()
-            time.sleep(1)
+            if not self.main_window.chkSkipHoming.isChecked():
+                self.home()
+            else:
+                # Pause: dialog box here to get user confirmation that they understand the risk of skipping homing
+                self.status_update.emit("skipping homing. Waiting for user to acknoledge risk...")
 
-            response = self.rig_controller.home_axes()
-            print(f"Homing responce during routine:\n {response}")
+                if not self.wait_for_confirmation("Skipping homing is risky, as it could result in serious damage to the machine and/or scanning subject if it has not been home prior or has moved since last homing. Do you acknowledge the risk and wish to continue?"):
+                    self.status_update.emit("Scan cancelled by user.")
+                    return
 
-            # Wait for homing with interruptible sleep
-            self.status_update.emit("Waiting for homing to complete...")
-            start_time = time.time()
-            while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
-                pos = self.rig_controller.get_current_position()
-                if pos is not None and pos["Y"] == 0.0 and pos["Z"] == 0.0:
-                    break
-                self.msleep(100)  # Use QThread's msleep for better integration
 
             if not self._is_running:
                 return
@@ -1668,7 +1680,6 @@ class ScanWorkerThread(QThread):
                 success_y = self.rig_controller.move_axis('Y', y_pos)
                 success_z = self.rig_controller.move_axis('Z', z_pos)
 
-                # TODO: Move this homing to seperate thread process so that it is not blocking
                 # Wait for moving with interruptible sleep
                 print("Waiting for move to black calibration strip to complete...")
                 start_time = time.time()
@@ -1735,7 +1746,7 @@ class ScanWorkerThread(QThread):
             start_time = time.time()
             while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
                 pos = self.rig_controller.get_current_position()
-                print(f'end postion move - current Pos Y: {pos["Y"]}')
+                # print(f'end postion move - current Pos Y: {pos["Y"]}')
                 if pos is not None and pos["Y"] >= self.scan_pos and pos["Z"] == self.cam_height:
                     break
                 self.msleep(100)
