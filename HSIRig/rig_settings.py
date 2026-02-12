@@ -19,8 +19,9 @@ RIG_BED_START = 80.0
 RIG_BED_END = 600.0
 
 # Rig camera height position
+SAMPLE_HEIGHT = 30
 RIG_CAM_HEIGHT = 0.0
-RIG_CAM_HEIGHT_OFFSET = 80.0 # This is the distance from surface of bed (in `mm` and the camera lense when camera is at 0 (at the lowest positions)
+RIG_CAM_HEIGHT_OFFSET = 106 #- SAMPLE_HEIGHT # This is the distance from surface of bed (in `mm` and the camera lense when camera is at 0 (at the lowest positions)
 
 # =========================
 # ==== READ-ONLY VALUES====

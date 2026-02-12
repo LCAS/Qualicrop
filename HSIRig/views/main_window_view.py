@@ -556,35 +556,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.btnStop.clicked.connect(self.stop)
         self.btnReset.clicked.connect(self.reset_controller)
 
-    # def calcSpeedFromFPS(self, FPS=50):
-    #     speed = 0.0  # Speed in mm/min
-    #     fps = FPS  # frame rate for the camera to capture at
-    #     # This is `mm`
-    #     height = rig_settings.RIG_CAM_HEIGHT_OFFSET + rig_settings.RIG_CAM_HEIGHT
-    #     spatial_width = WIDTH
-
-    #     # Multiply by 60 to get speed in mm/min instead of mm/sec
-    #     fov_rad = math.radians(CAMERA_LENSE_FOV)
-
-    #     speed = 60*fps * ((2 * height * math.tan(fov_rad / 2)) / spatial_width)
-    #     # speed_offset = 16.5
-    #     # speed = speed + speed_offset
-    #     # speed = 60 * fps * LINE_PITCH
-    #     print(f"calculated speed from FPS: {speed}")
-
-    #     return speed
     def calcSpeedFromFPS(self, FPS=50):
+        speed = 0.0  # Speed in mm/min
+        fps = FPS  # frame rate for the camera to capture at
         # This is `mm`
         height = rig_settings.RIG_CAM_HEIGHT_OFFSET + rig_settings.RIG_CAM_HEIGHT
+        spatial_width = WIDTH
 
-        object_length = (0.6842 * height) + 21.368
+        # Multiply by 60 to get speed in mm/min instead of mm/sec
+        fov_rad = math.radians(CAMERA_LENSE_FOV)
 
-        actual_pitch = object_length / WIDTH
-
-        speed = 60 * FPS * actual_pitch
+        speed = 60*fps * ((2 * height * math.tan(fov_rad / 2)) / spatial_width)
+        # speed_offset = 16.5
+        # speed = speed + speed_offset
+        # speed = 60 * fps * LINE_PITCH
         print(f"calculated speed from FPS: {speed}")
-
         return speed
+    
+    # def calcSpeedFromFPS(self, FPS=50):
+    #     # This is `mm`
+    #     height = rig_settings.RIG_CAM_HEIGHT_OFFSET + rig_settings.RIG_CAM_HEIGHT
+    #     object_length = (0.6842 * height) + 21.368
+    #     actual_pitch = object_length / WIDTH
+    #     speed = 60 * FPS * actual_pitch
+    #     print(f"calculated speed from FPS: {speed}")
+    #     return speed
 
     def loading_settings(self):
         """
@@ -1297,7 +1293,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         command_status, message = send_command(
             'SPATIAL_BINNING,' + cam_spat_bin)  # str(self.cmbSpatialBin.currentIndex()))
         
-        self.specSensor.setbool("Camera.Preprocessing.Enabled", True)
+        #self.specSensor.setbool("Camera.Preprocessing.Enabled", True)
         self.specSensor.setbool("Camera.AutoNUC", True)
 
         return message
@@ -1796,7 +1792,7 @@ class ScanWorkerThread(QThread):
             while time.time() - start_time < rig_settings.RIG_TIMEOUT_READ_ONLY and self._is_running:
                 pos = self.rig_controller.get_current_position()
                 # print(f'end postion move - current Pos Y: {pos["Y"]}')
-                if pos is not None and pos["Y"] >= self.scan_pos and pos["Z"] == self.cam_height:
+                if pos is not None and round(pos["Y"], 1) >= round(self.scan_pos, 1) and pos["Z"] == self.cam_height:
                     break
                 self.msleep(100)
 
