@@ -201,3 +201,7 @@ HSIRig/c:/temp/*
 
 # ignore zip files
 *.zip
+
+.idea/
+HSIRig/output/
+
