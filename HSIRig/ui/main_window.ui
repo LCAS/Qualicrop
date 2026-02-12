@@ -274,7 +274,7 @@
         <bool>true</bool>
        </property>
       </widget>
-      <widget class="QCheckBox" name="chkCalibration_2">
+      <widget class="QCheckBox" name="chkSkipHoming">
        <property name="geometry">
         <rect>
          <x>7</x>
